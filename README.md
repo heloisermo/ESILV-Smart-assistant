@@ -26,7 +26,7 @@ python scraper.py
 ```
 
 Cette commande va :
-- Scraper jusqu à 100 pages du site
+- Scraper jusqu'à 100 pages du site
 - Sauvegarder les données dans `data/scraped_data.json`
 - Prendre environ 2-3 minutes
 
@@ -38,7 +38,7 @@ python indexer.py
 
 Cette commande va :
 - Créer les embeddings vectoriels
-- Générer l index FAISS dans `data/faiss_index.bin`
+- Générer l'index FAISS dans `data/faiss_index.bin`
 - Sauvegarder le mapping dans `data/faiss_mapping.json`
 
 ## Structure des fichiers
@@ -53,12 +53,12 @@ ESILV-Smart-assistant/
 │           │   ├── faiss_index.bin
 │           │   └── faiss_mapping.json
 │           ├── scraper.py         # Script de scraping
-│           ├── indexer.py         # Script d indexation
+│           ├── indexer.py         # Script d'indexation
 │           └── .env               # Configuration (à créer)
 └── requirements.txt
 ```
 
-## 🧪 Tests
+## Tests
 
 Pour tester le système complet :
 
@@ -66,8 +66,8 @@ Pour tester le système complet :
 python test_simple.py
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 - **SCRAPING_URL** : URL de base à scraper (dans `.env`)
 - **limit** : Nombre maximum de pages à scraper (modifiable dans `scraper.py`)
-- **Modèle d embeddings** : `all-MiniLM-L6-v2` (configurable dans `indexer.py`)
+- **Modèle d'embeddings** : `all-MiniLM-L6-v2` (configurable dans `indexer.py`)
