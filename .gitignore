@@ -1,0 +1,9 @@
+.env
+# les pycache de chaque dossier
+**/__pycache__/
+**/*.pyc
+# les dossiers data
+data/
+data/*
+# les init
+**/__init__.py
