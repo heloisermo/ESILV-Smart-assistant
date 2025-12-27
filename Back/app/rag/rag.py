@@ -183,8 +183,52 @@ class FaissRAGGemini:
             import traceback
             traceback.print_exc()
             return None
+    
+    def _generate_stream(self, system_prompt: str, user_prompt: str):
+        """Génère une réponse en streaming avec Vertex AI"""
+        try:
+            # Combiner system prompt et user prompt
+            full_prompt = f"{system_prompt}\n\n{user_prompt}"
+            
+            # Préparer la requête en mode streaming
+            url = f"{self.api_endpoint.replace('generateContent', 'streamGenerateContent')}?key={self.api_key}"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{
+                    "role": "user",
+                    "parts": [{"text": full_prompt}]
+                }],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 1024,
+                }
+            }
+            
+            response = requests.post(url, headers=headers, json=payload, timeout=30, stream=True)
+            response.raise_for_status()
+            
+            # Parser le stream
+            for line in response.iter_lines():
+                if line:
+                    line_str = line.decode('utf-8')
+                    # Les réponses sont au format JSON avec préfixe "data: "
+                    if line_str.startswith('data: '):
+                        json_str = line_str[6:]  # Enlever "data: "
+                        if json_str.strip():
+                            try:
+                                data = json.loads(json_str)
+                                if "candidates" in data and len(data["candidates"]) > 0:
+                                    parts = data["candidates"][0]["content"]["parts"]
+                                    if parts and "text" in parts[0]:
+                                        yield parts[0]["text"]
+                            except json.JSONDecodeError:
+                                continue
+            
+        except Exception as e:
+            print(f"Erreur Vertex AI streaming: {e}")
+            yield f"Erreur: {str(e)}"
 
-    def answer(self, question: str, k: int = 5, fallback_mode: bool = True, enable_web_search: bool = True):
+    def answer(self, question: str, k: int = 5, fallback_mode: bool = True, enable_web_search: bool = True, stream: bool = False):
         """Répond à une question en utilisant le RAG et le scraping en temps réel si nécessaire"""
         docs = self.retrieve(question, k=k)
         
@@ -218,14 +262,26 @@ class FaissRAGGemini:
             "Si l'information n'est pas dans les extraits, dis-le clairement."
         )
         
-        ans = self._generate(SYSTEM_PROMPT, user_prompt)
-        
-        # Mode fallback si Vertex AI est indisponible
-        if ans is None and fallback_mode:
-            print("\nVertex AI est indisponible. Voici un resume basique des documents trouves:")
-            ans = self._fallback_answer(docs, question)
-        
-        return ans, docs
+        if stream:
+            # Mode streaming
+            def generate():
+                full_response = ""
+                for chunk in self._generate_stream(SYSTEM_PROMPT, user_prompt):
+                    full_response += chunk
+                    yield chunk
+                # Retourner aussi les docs à la fin
+                yield {"docs": docs, "full_response": full_response}
+            return generate()
+        else:
+            # Mode normal
+            ans = self._generate(SYSTEM_PROMPT, user_prompt)
+            
+            # Mode fallback si Vertex AI est indisponible
+            if ans is None and fallback_mode:
+                print("\nVertex AI est indisponible. Voici un resume basique des documents trouves:")
+                ans = self._fallback_answer(docs, question)
+            
+            return ans, docs
     
     def _fallback_answer(self, docs, question):
         """Réponse de secours sans LLM"""

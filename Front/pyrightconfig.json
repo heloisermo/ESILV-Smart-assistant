@@ -1,0 +1,7 @@
+{
+  "extraPaths": [
+    "../Back/app/agents"
+  ],
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false
+}

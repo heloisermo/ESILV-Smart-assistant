@@ -1,0 +1,9 @@
+{
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/Back/app/agents"
+  ],
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingImports": "none",
+    "reportMissingModuleSource": "none"
+  }
+}
