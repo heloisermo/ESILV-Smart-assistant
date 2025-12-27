@@ -75,16 +75,22 @@ st.markdown("""
     }
     
     .logo-box {
-        width: 80px;
-        height: 80px;
-        border-radius: 16px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        width: 180px;
+        height: 120px;
+        border-radius: 12px;
+        background: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.5rem;
-        box-shadow: 0 4px 16px rgba(102, 126, 234, 0.15);
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         flex-shrink: 0;
+    }
+    
+    .logo-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
     }
     
     .title-section h1 {
@@ -689,10 +695,20 @@ def main():
     init_session_state()
     
     # Header avec logo
-    st.markdown("""
+    logo_path = os.path.join(os.path.dirname(__file__), "assets", "esilv_logo.png")
+    
+    if os.path.exists(logo_path):
+        import base64
+        with open(logo_path, "rb") as f:
+            logo_b64 = base64.b64encode(f.read()).decode()
+        logo_html = f'<img src="data:image/png;base64,{logo_b64}" alt="ESILV Logo">'
+    else:
+        logo_html = '🎓'
+    
+    st.markdown(f"""
     <div class="header-container">
         <div class="logo-section">
-            <div class="logo-box">🎓</div>
+            <div class="logo-box">{logo_html}</div>
             <div class="title-section">
                 <h1>ESILV Assistant</h1>
                 <p>Votre assistant IA pour les questions sur ESILV</p>
