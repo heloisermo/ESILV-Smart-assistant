@@ -3,7 +3,8 @@ import json
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import google.generativeai as genai
+import vertexai
+from vertexai.generative_models import GenerativeModel
 from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup
@@ -15,8 +16,9 @@ INDEX_PATH = "data/faiss_index.bin"
 MAPPING_PATH = "data/faiss_mapping.json"
 
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+VERTEX_MODEL = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
+VERTEX_PROJECT = os.getenv("VERTEX_PROJECT", "esilv-smart-assistant")
+VERTEX_LOCATION = os.getenv("VERTEX_LOCATION", "us-central1")
 
 SYSTEM_PROMPT = os.getenv(
     "SYSTEM_PROMPT", 
@@ -27,12 +29,32 @@ SYSTEM_PROMPT = os.getenv(
 
 class FaissRAGGemini:
     def __init__(self):
-        if not GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY manquante dans .env")
+        try:
+            # Configurer Vertex AI
+            vertexai.init(project=VERTEX_PROJECT, location=VERTEX_LOCATION)
+            self.llm = GenerativeModel(VERTEX_MODEL)
+        except Exception as e:
+            raise ValueError(f"Erreur initialisation Vertex AI: {e}")
         
-        # Configurer Gemini
-        genai.configure(api_key=GEMINI_API_KEY)
-        self.llm = genai.GenerativeModel(GEMINI_MODEL)
+        # Vérifier que l'index existe
+        if not os.path.exists(INDEX_PATH):
+            print(f"⚠️ Index FAISS non trouvé: {INDEX_PATH}")
+            print("📌 Crée d'abord des documents via l'Administration > Document Management")
+            self.index = None
+            self.urls = []
+            self.texts = []
+            self.doc_indices = []
+            self.model = SentenceTransformer(MODEL_NAME)
+            return
+        
+        if not os.path.exists(MAPPING_PATH):
+            print(f"⚠️ Mapping FAISS non trouvé: {MAPPING_PATH}")
+            self.index = None
+            self.urls = []
+            self.texts = []
+            self.doc_indices = []
+            self.model = SentenceTransformer(MODEL_NAME)
+            return
         
         self.index = faiss.read_index(INDEX_PATH)
         with open(MAPPING_PATH, "r", encoding="utf-8") as f:
@@ -45,7 +67,7 @@ class FaissRAGGemini:
         self.model = SentenceTransformer(MODEL_NAME)
         
         print(f"Index charge : {len(self.texts)} chunks")
-        print(f"Modele Gemini : {GEMINI_MODEL}")
+        print(f"Modele Vertex AI : {VERTEX_MODEL}")
 
     def retrieve(self, query, k=5):
         q_emb = self.model.encode(
@@ -237,15 +259,15 @@ if __name__ == "__main__":
         rag = FaissRAGGemini()
     except ValueError as e:
         print(e)
-        print("\nPour obtenir une cle API Gemini:")
-        print("1. Va sur https://aistudio.google.com/app/apikey")
-        print("2. Cree un compte Google (gratuit)")
-        print("3. Genere une cle API")
-        print("4. Ajoute-la dans ton .env: GEMINI_API_KEY=ta_cle_ici")
+        print("\nPour obtenir une cle API Vertex AI:")
+        print("1. Va sur https://console.cloud.google.com/")
+        print("2. Active l'API Vertex AI")
+        print("3. Cree une cle de service")
+        print("4. Ajoute les variables dans ton .env")
         exit(1)
     
     print("\n" + "="*60)
-    print("Chatbot RAG avec Google Gemini pret !")
+    print("Chatbot RAG avec Google Vertex AI pret !")
     print("="*60 + "\n")
     
     while True:

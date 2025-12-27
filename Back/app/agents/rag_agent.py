@@ -13,7 +13,7 @@ load_dotenv(env_path)
 # Ajouter le chemin du module rag
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'rag'))
 
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 
 class RAGAgent(BaseAgent):
@@ -39,10 +39,10 @@ class RAGAgent(BaseAgent):
             env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '.env'))
             load_dotenv(env_path)
             
-            # Vérifier que la clé API est bien chargée
-            api_key = os.getenv("GEMINI_API_KEY")
-            if not api_key:
-                print(f"⚠️ GEMINI_API_KEY non trouvée. Chemin .env: {env_path}")
+            # Vérifier que Vertex AI est configuré
+            project_id = os.getenv("VERTEX_PROJECT")
+            if not project_id:
+                print(f"⚠️ VERTEX_PROJECT non trouvé. Chemin .env: {env_path}")
                 self.rag_system = None
                 return
             

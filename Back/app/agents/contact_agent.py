@@ -2,11 +2,17 @@
 Agent de contact pour gérer les demandes de contact avec l'ESILV
 """
 import os
-import google.generativeai as genai
+import sys
+import vertexai
+from vertexai.generative_models import GenerativeModel
 from typing import Dict, Any
 from dotenv import load_dotenv
 
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
+
+# Add parent directory to path for leads_manager import
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from leads_manager import add_lead
 
 load_dotenv()
 
@@ -50,12 +56,16 @@ class ContactAgent(BaseAgent):
     def __init__(self):
         super().__init__("Contact Agent")
         
-        # Configurer Gemini pour générer des réponses personnalisées
-        api_key = os.getenv("GEMINI_API_KEY")
-        if api_key:
-            genai.configure(api_key=api_key)
-            self.llm = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
-        else:
+        # Configurer Vertex AI pour générer des réponses personnalisées
+        project_id = os.getenv("VERTEX_PROJECT", "esilv-smart-assistant")
+        location = os.getenv("VERTEX_LOCATION", "us-central1")
+        
+        try:
+            vertexai.init(project=project_id, location=location)
+            model_name = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
+            self.llm = GenerativeModel(model_name)
+        except Exception as e:
+            print(f"⚠️ Erreur initialisation Vertex AI: {e}")
             self.llm = None
         
         print(f"✅ {self.name} initialisé avec succès")
@@ -139,6 +149,40 @@ class ContactAgent(BaseAgent):
         
         return "".join(response_parts)
     
+    def _save_lead_from_context(self, context: Dict[str, Any] = None):
+        """
+        Extract and save lead information from context if available
+        This is called when a user provides their contact information
+        
+        Args:
+            context: Context dictionary that may contain user information
+        """
+        if not context:
+            return
+        
+        try:
+            # Extract lead information from context
+            name = context.get("user_name") or context.get("name")
+            email = context.get("user_email") or context.get("email")
+            education = context.get("education") or context.get("current_education")
+            program = context.get("program_interest") or context.get("program_of_interest")
+            message = context.get("message")
+            
+            # Only save if we have at least name and email
+            if name and email:
+                new_lead = add_lead(
+                    name=name,
+                    email=email,
+                    education=education,
+                    program_of_interest=program,
+                    message=message
+                )
+                print(f"✅ Lead saved: {new_lead['id']} - {name} ({email})")
+        
+        except Exception as e:
+            print(f"⚠️ Could not save lead: {str(e)}")
+    
+    
     def process(self, query: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Traite la demande de contact
@@ -151,6 +195,9 @@ class ContactAgent(BaseAgent):
             Informations de contact appropriées
         """
         try:
+            # Try to save lead information if context contains user data
+            self._save_lead_from_context(context)
+            
             # Identifier le service concerné
             service = self._identify_service(query)
             

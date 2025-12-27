@@ -3,11 +3,12 @@ Agent orchestrateur qui route les requêtes vers les agents appropriés
 """
 import os
 import re
-import google.generativeai as genai
+import vertexai
+from vertexai.generative_models import GenerativeModel
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 load_dotenv()
 
@@ -26,12 +27,16 @@ class OrchestratorAgent:
         """
         self.agents = agents or []
         
-        # Configurer Gemini pour l'analyse d'intention
-        api_key = os.getenv("GEMINI_API_KEY")
-        if api_key:
-            genai.configure(api_key=api_key)
-            self.llm = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
-        else:
+        # Configurer Vertex AI
+        project_id = os.getenv("VERTEX_PROJECT", "esilv-smart-assistant")
+        location = os.getenv("VERTEX_LOCATION", "us-central1")
+        
+        try:
+            vertexai.init(project=project_id, location=location)
+            model_name = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
+            self.llm = GenerativeModel(model_name)
+        except Exception as e:
+            print(f"⚠️ Erreur initialisation Vertex AI: {e}")
             self.llm = None
     
     def register_agent(self, agent: BaseAgent):
