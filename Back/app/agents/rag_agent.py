@@ -40,9 +40,9 @@ class RAGAgent(BaseAgent):
             load_dotenv(env_path)
             
             # Vérifier que la clé API est bien chargée
-            api_key = os.getenv("GEMINI_API_KEY")
+            api_key = os.getenv("VERTEX_API_KEY")
             if not api_key:
-                print(f"⚠️ GEMINI_API_KEY non trouvée. Chemin .env: {env_path}")
+                print(f"⚠️ VERTEX_API_KEY non trouvée. Chemin .env: {env_path}")
                 self.rag_system = None
                 return
             

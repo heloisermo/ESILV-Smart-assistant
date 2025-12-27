@@ -3,7 +3,6 @@ import json
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
-import google.generativeai as genai
 from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup
@@ -15,8 +14,9 @@ INDEX_PATH = "data/faiss_index.bin"
 MAPPING_PATH = "data/faiss_mapping.json"
 
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+VERTEX_MODEL = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
+VERTEX_API_KEY = os.getenv("VERTEX_API_KEY")
+VERTEX_API_ENDPOINT = f"https://aiplatform.googleapis.com/v1/publishers/google/models/{VERTEX_MODEL}:generateContent"
 
 SYSTEM_PROMPT = os.getenv(
     "SYSTEM_PROMPT", 
@@ -27,12 +27,11 @@ SYSTEM_PROMPT = os.getenv(
 
 class FaissRAGGemini:
     def __init__(self):
-        if not GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY manquante dans .env")
+        if not VERTEX_API_KEY:
+            raise ValueError("VERTEX_API_KEY manquante dans .env")
         
-        # Configurer Gemini
-        genai.configure(api_key=GEMINI_API_KEY)
-        self.llm = genai.GenerativeModel(GEMINI_MODEL)
+        self.api_key = VERTEX_API_KEY
+        self.api_endpoint = VERTEX_API_ENDPOINT
         
         self.index = faiss.read_index(INDEX_PATH)
         with open(MAPPING_PATH, "r", encoding="utf-8") as f:
@@ -45,7 +44,7 @@ class FaissRAGGemini:
         self.model = SentenceTransformer(MODEL_NAME)
         
         print(f"Index charge : {len(self.texts)} chunks")
-        print(f"Modele Gemini : {GEMINI_MODEL}")
+        print(f"Modele Vertex AI : {VERTEX_MODEL}")
 
     def retrieve(self, query, k=5):
         q_emb = self.model.encode(
@@ -148,23 +147,38 @@ class FaissRAGGemini:
 
 
     def _generate(self, system_prompt: str, user_prompt: str) -> str:
-        """Génère une réponse avec Google Gemini"""
+        """Génère une réponse avec Vertex AI via API REST"""
         try:
-            # Gemini n'a pas de system prompt séparé, on le combine avec le user prompt
+            # Combiner system prompt et user prompt
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             
-            response = self.llm.generate_content(
-                full_prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.7,
-                    max_output_tokens=1024,
-                )
-            )
+            # Préparer la requête
+            url = f"{self.api_endpoint}?key={self.api_key}"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{
+                    "role": "user",
+                    "parts": [{"text": full_prompt}]
+                }],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "maxOutputTokens": 1024,
+                }
+            }
             
-            return response.text.strip()
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            if "candidates" in result and len(result["candidates"]) > 0:
+                text = result["candidates"][0]["content"]["parts"][0]["text"]
+                return text.strip()
+            else:
+                print(f"Réponse inattendue de l'API: {result}")
+                return None
             
         except Exception as e:
-            print(f"Erreur Gemini: {e}")
+            print(f"Erreur Vertex AI: {e}")
             print(f"Type d'erreur: {type(e).__name__}")
             import traceback
             traceback.print_exc()
@@ -206,9 +220,9 @@ class FaissRAGGemini:
         
         ans = self._generate(SYSTEM_PROMPT, user_prompt)
         
-        # Mode fallback si Gemini est indisponible
+        # Mode fallback si Vertex AI est indisponible
         if ans is None and fallback_mode:
-            print("\nGemini est indisponible. Voici un resume basique des documents trouves:")
+            print("\nVertex AI est indisponible. Voici un resume basique des documents trouves:")
             ans = self._fallback_answer(docs, question)
         
         return ans, docs
@@ -227,7 +241,7 @@ class FaissRAGGemini:
         return (
             f"Voici les extraits les plus pertinents trouves pour votre question:\n\n" +
             "\n\n".join(snippets) +
-            "\n\nReponse generee sans IA (Gemini indisponible). "
+            "\n\nReponse generee sans IA (Vertex AI indisponible). "
             "Consultez les sources ci-dessous pour plus de details."
         )
 
@@ -237,15 +251,15 @@ if __name__ == "__main__":
         rag = FaissRAGGemini()
     except ValueError as e:
         print(e)
-        print("\nPour obtenir une cle API Gemini:")
-        print("1. Va sur https://aistudio.google.com/app/apikey")
-        print("2. Cree un compte Google (gratuit)")
-        print("3. Genere une cle API")
-        print("4. Ajoute-la dans ton .env: GEMINI_API_KEY=ta_cle_ici")
+        print("\nPour configurer Vertex AI:")
+        print("1. Va sur Google Cloud Console")
+        print("2. Active l'API Vertex AI")
+        print("3. Cree des credentials (service account key JSON)")
+        print("4. Ajoute le chemin dans ton .env: VERTEX_API_KEY=chemin/vers/credentials.json")
         exit(1)
     
     print("\n" + "="*60)
-    print("Chatbot RAG avec Google Gemini pret !")
+    print("Chatbot RAG avec Vertex AI pret !")
     print("="*60 + "\n")
     
     while True:
