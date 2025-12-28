@@ -8,7 +8,10 @@ from vertexai.generative_models import GenerativeModel
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
-from .base_agent import BaseAgent
+try:
+    from .base_agent import BaseAgent
+except ImportError:
+    from base_agent import BaseAgent
 
 load_dotenv()
 

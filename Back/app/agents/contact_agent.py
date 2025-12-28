@@ -9,7 +9,10 @@ from typing import Dict, Any
 from datetime import datetime
 from dotenv import load_dotenv
 
-from .base_agent import BaseAgent
+try:
+    from .base_agent import BaseAgent
+except ImportError:
+    from base_agent import BaseAgent
 
 load_dotenv()
 

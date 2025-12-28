@@ -143,7 +143,7 @@ def handle_form_input(user_input: str, state: dict, contact_agent) -> dict:
 
 def extract_form_data_with_llm(user_input: str, current_fields: dict, contact_agent) -> dict:
     """Utilise le LLM pour extraire les données du formulaire depuis le message utilisateur"""
-    if not contact_agent.api_endpoint:
+    if not contact_agent.llm:
         # Fallback: parser manuel simple
         return parse_user_input(user_input)
     
@@ -176,34 +176,22 @@ Règles:
 
 JSON:"""
         
-        url = f"{contact_agent.api_endpoint}?key={contact_agent.api_key}"
-        payload = {
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "temperature": 0.1,
-                "maxOutputTokens": 512
-            }
-        }
-        response = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=15)
-        response.raise_for_status()
+        response = contact_agent.llm.generate_content(prompt)
+        llm_response = response.text.strip()
         
-        result = response.json()
-        if "candidates" in result and len(result["candidates"]) > 0:
-            llm_response = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-            
-            # Extraire le JSON de la réponse
-            import json
-            import re
-            
-            # Chercher le JSON dans la réponse
-            json_match = re.search(r'\{[\s\S]*\}', llm_response)
-            if json_match:
-                form_data = json.loads(json_match.group())
-                # Convertir les null en None
-                return {k: v if v != "null" and v else None for k, v in form_data.items()}
+        # Extraire le JSON de la réponse
+        import json
+        import re
+        
+        # Chercher le JSON dans la réponse
+        json_match = re.search(r'\{[\s\S]*\}', llm_response)
+        if json_match:
+            form_data = json.loads(json_match.group())
+            # Convertir les null en None
+            return {k: v if v != "null" and v else None for k, v in form_data.items()}
         
     except Exception as e:
-        print(f"⚠️ Erreur LLM extraction: {e}")
+        print(f"Erreur LLM extraction: {e}")
     
     # Fallback: parser manuel
     return parse_user_input(user_input)
@@ -211,7 +199,7 @@ JSON:"""
 
 def generate_missing_fields_request(missing_fields: list, contact_agent) -> str:
     """Génère une demande naturelle pour les champs manquants avec le LLM"""
-    if not contact_agent.api_endpoint:
+    if not contact_agent.llm:
         return None
     
     try:
@@ -219,20 +207,12 @@ def generate_missing_fields_request(missing_fields: list, contact_agent) -> str:
 {', '.join(missing_fields)}
 
 Génère une courte phrase amicale en français (1-2 phrases max) pour demander ces informations manquantes.
-Utilise des emojis appropriés et reste naturel.
+Reste naturel.
 
 Réponse:"""
         
-        url = f"{contact_agent.api_endpoint}?key={contact_agent.api_key}"
-        payload = {
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}]
-        }
-        response = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=10)
-        response.raise_for_status()
-        
-        result = response.json()
-        if "candidates" in result and len(result["candidates"]) > 0:
-            return result["candidates"][0]["content"]["parts"][0]["text"].strip()
+        response = contact_agent.llm.generate_content(prompt)
+        return response.text.strip()
     except:
         pass
     

@@ -13,7 +13,10 @@ load_dotenv(env_path)
 # Ajouter le chemin du module rag
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'rag'))
 
-from .base_agent import BaseAgent
+try:
+    from .base_agent import BaseAgent
+except ImportError:
+    from base_agent import BaseAgent
 
 
 class RAGAgent(BaseAgent):

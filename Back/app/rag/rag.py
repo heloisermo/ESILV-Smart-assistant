@@ -176,11 +176,7 @@ class FaissRAGGemini:
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             
             response = self.llm.generate_content(
-                full_prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.7,
-                    max_output_tokens=1024,
-                )
+                full_prompt
             )
             
             return response.text.strip()

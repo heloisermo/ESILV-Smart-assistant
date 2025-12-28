@@ -504,10 +504,9 @@ def initialize_agents():
 
 def extract_form_data_with_llm(user_input, current_fields, contact_agent):
     """Utilise le LLM pour extraire les données du formulaire"""
-    import requests
     import re
     
-    if not contact_agent.api_endpoint:
+    if not contact_agent.llm:
         return None
     
     try:
@@ -539,22 +538,13 @@ Règles:
 
 JSON:"""
         
-        url = f"{contact_agent.api_endpoint}?key={contact_agent.api_key}"
-        payload = {
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 512}
-        }
-        response = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=15)
-        response.raise_for_status()
+        response = contact_agent.llm.generate_content(prompt)
+        llm_response = response.text.strip()
         
-        result = response.json()
-        if "candidates" in result and len(result["candidates"]) > 0:
-            llm_response = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-            
-            json_match = re.search(r'\{[\s\S]*\}', llm_response)
-            if json_match:
-                form_data = json.loads(json_match.group())
-                return {k: v if v != "null" and v else None for k, v in form_data.items()}
+        json_match = re.search(r'\{[\s\S]*\}', llm_response)
+        if json_match:
+            form_data = json.loads(json_match.group())
+            return {k: v if v != "null" and v else None for k, v in form_data.items()}
     except Exception as e:
         st.warning(f"Erreur extraction: {e}")
     
@@ -749,6 +739,10 @@ def main():
                 for key, value in st.session_state.pending_form["fields"].items():
                     status = "OK" if value else "--"
                     st.text(f"{status} {key.capitalize()}: {value or 'Non fourni'}")
+            
+            if st.button("Annuler le formulaire", use_container_width=True, type="secondary"):
+                st.session_state.pending_form = None
+                st.rerun()
         
         st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
         
@@ -801,7 +795,40 @@ def main():
         
         # Traiter la réponse
         if st.session_state.pending_form:
-            result = handle_form_input(user_input)
+            # Vérifier si l'utilisateur veut annuler le formulaire ou poser une autre question
+            query_lower = user_input.lower()
+            cancel_keywords = ['annuler', 'stop', 'arrêter', 'quitter', 'non merci', 'laisse tomber']
+            question_keywords = ['qu\'est-ce', 'quelle', 'quel', 'comment', 'pourquoi', 'où', 'quand', 'qui', 
+                                'parle moi', 'dis moi', 'explique', 'décris', 'présente', 'combien']
+            
+            is_cancel = any(keyword in query_lower for keyword in cancel_keywords)
+            is_question = any(keyword in query_lower for keyword in question_keywords)
+            
+            if is_cancel:
+                st.session_state.pending_form = None
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": "D'accord, j'annule le formulaire. Comment puis-je vous aider ?",
+                    "agent": "Contact Agent",
+                    "timestamp": datetime.now().strftime("%H:%M")
+                })
+                st.rerun()
+            elif is_question and len(user_input) > 20:
+                # C'est probablement une vraie question, pas des données de formulaire
+                st.session_state.pending_form = None
+                result = st.session_state.orchestrator.route(user_input)
+                
+                if result.get("success"):
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": result.get("response", "Pas de réponse"),
+                        "agent": result.get("agent_used", "Assistant"),
+                        "timestamp": datetime.now().strftime("%H:%M")
+                    })
+                st.rerun()
+            else:
+                # Traiter comme données de formulaire
+                result = handle_form_input(user_input)
             
             if result.get("success"):
                 st.session_state.messages.append({
@@ -813,6 +840,12 @@ def main():
                 
                 if result.get("form_submitted"):
                     st.session_state.pending_form = None
+                    st.session_state.messages.append({
+                        "role": "assistant", 
+                        "content": "Le formulaire a été envoyé avec succès ! Comment puis-je vous aider maintenant ?",
+                        "agent": "Contact Agent",
+                        "timestamp": datetime.now().strftime("%H:%M")
+                    })
                     st.balloons()
             else:
                 st.session_state.messages.append({
