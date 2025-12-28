@@ -28,6 +28,8 @@ class RAGAgent(BaseAgent):
         super().__init__("RAG Agent")
         self.rag_system = None
         self._initialize_rag()
+        # Exposer l'instance RAG pour permettre le rechargement
+        self.rag_instance = self.rag_system
     
     def _initialize_rag(self):
         """Initialise le système RAG"""

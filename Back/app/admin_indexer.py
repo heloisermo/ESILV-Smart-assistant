@@ -463,6 +463,112 @@ def rebuild_index(
         return False, f"Error rebuilding index: {str(e)}", {}
 
 
+def add_document_to_index(
+    document_path: str,
+    document_name: str,
+    progress_callback=None
+) -> Tuple[bool, str, Dict[str, Any]]:
+    """
+    Add a single document to the existing FAISS index incrementally (without rebuilding everything)
+    
+    Args:
+        document_path: Path to the document file
+        document_name: Name/identifier for the document
+        progress_callback: Optional callback function for progress updates
+        
+    Returns:
+        Tuple of (success: bool, message: str, stats: dict)
+    """
+    try:
+        ensure_data_dir()
+        
+        # Check if index exists
+        if not os.path.exists(INDEX_PATH) or not os.path.exists(MAPPING_PATH):
+            return False, "Index does not exist. Please rebuild the index first.", {}
+        
+        if progress_callback:
+            progress_callback("Loading existing index...")
+        
+        # Load existing index and mapping
+        index = faiss.read_index(INDEX_PATH)
+        with open(MAPPING_PATH, "r", encoding="utf-8") as f:
+            mapping_data = json.load(f)
+        
+        urls = mapping_data.get("urls", [])
+        chunks = mapping_data.get("texts", [])
+        doc_indices = mapping_data.get("doc_indices", [])
+        
+        # Get the next document index
+        max_doc_idx = max(doc_indices) if doc_indices else -1
+        new_doc_idx = max_doc_idx + 1
+        
+        if progress_callback:
+            progress_callback("Extracting text from document...")
+        
+        # Extract text from the new document
+        from document_manager import extract_text_from_file
+        text = extract_text_from_file(document_path)
+        
+        if not text or len(text.strip()) < MIN_CHUNK_SIZE:
+            return False, "Document is empty or too short to index", {}
+        
+        if progress_callback:
+            progress_callback("Chunking document...")
+        
+        # Chunk the new document
+        new_chunks = smart_chunk_text(text)
+        
+        if not new_chunks:
+            return False, "No chunks created from document", {}
+        
+        if progress_callback:
+            progress_callback(f"Generating embeddings for {len(new_chunks)} chunks...")
+        
+        # Generate embeddings for new chunks
+        new_embeddings = make_embeddings(new_chunks)
+        
+        if progress_callback:
+            progress_callback("Adding to index...")
+        
+        # Add new embeddings to the existing index
+        index.add(new_embeddings)
+        
+        # Update mapping data
+        for chunk in new_chunks:
+            urls.append(document_name)
+            chunks.append(chunk)
+            doc_indices.append(new_doc_idx)
+        
+        if progress_callback:
+            progress_callback("Saving updated index...")
+        
+        # Save updated index
+        faiss.write_index(index, INDEX_PATH)
+        
+        # Save updated mapping
+        updated_mapping = {
+            "urls": urls,
+            "texts": chunks,
+            "doc_indices": doc_indices
+        }
+        
+        with open(MAPPING_PATH, "w", encoding="utf-8") as f:
+            json.dump(updated_mapping, f, ensure_ascii=False, indent=2)
+        
+        # Prepare stats
+        stats = {
+            "chunks_added": len(new_chunks),
+            "total_chunks": len(chunks),
+            "document_name": document_name,
+            "added_at": datetime.now().isoformat()
+        }
+        
+        return True, f"Document added successfully with {len(new_chunks)} chunks", stats
+    
+    except Exception as e:
+        return False, f"Error adding document to index: {str(e)}", {}
+
+
 def get_index_stats() -> Dict[str, Any]:
     """
     Get statistics about the current index

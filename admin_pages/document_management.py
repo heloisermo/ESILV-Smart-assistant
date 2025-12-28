@@ -11,7 +11,12 @@ import pandas as pd
 # Add Back/app to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "Back", "app"))
 
-from admin_indexer import rebuild_index, get_index_stats, get_indexed_documents
+from admin_indexer import (
+    rebuild_index, 
+    get_index_stats, 
+    get_indexed_documents,
+    add_document_to_index
+)
 from document_manager import (
     save_uploaded_document,
     process_document,
@@ -20,7 +25,6 @@ from document_manager import (
     delete_document,
     mark_document_as_indexed
 )
-from admin_indexer import chunk_documents, load_documents
 
 
 def format_bytes(bytes_val: int) -> str:
@@ -42,39 +46,59 @@ def format_datetime(iso_str: str) -> str:
 
 
 def render_document_management():
-    """Render the document management section"""
-    st.header("📄 Document Management")
+    """Afficher la section de gestion des documents"""
+    st.header("📄 Gestion des Documents")
     
-    # Create tabs for different sections
-    doc_tabs = st.tabs(["Upload Documents", "Indexed Documents", "Index Status"])
+    # Créer des onglets pour différentes sections
+    doc_tabs = st.tabs(["📤 Télécharger", "📁 Documents Indexés", "📊 Statut de l'Index"])
     
     # ===== TAB 1: Upload Documents =====
     with doc_tabs[0]:
-        st.subheader("Upload New Documents")
+        st.subheader("⬆️ Télécharger de Nouveaux Documents")
         st.write("""
-        Upload documents (PDF, HTML, or TXT) to be indexed and used by the RAG system.
-        After uploading, you'll need to rebuild the index to make them available.
+        Téléchargez des documents (PDF, HTML ou TXT) pour les indexer et les utiliser dans le système RAG.
+        Vous pouvez choisir de les ajouter de manière incrémentale (plus rapide) ou de reconstruire tout l'index.
         """)
         
         uploaded_files = st.file_uploader(
-            "Choose files to upload",
+            "Choisir des fichiers",
             type=["pdf", "html", "htm", "txt"],
             accept_multiple_files=True,
-            help="Select one or more documents to upload"
+            help="Sélectionnez un ou plusieurs documents à télécharger"
         )
         
         if uploaded_files:
-            st.write(f"**{len(uploaded_files)} file(s) ready to upload**")
+            st.write(f"**{len(uploaded_files)} fichier(s) prêt(s) à télécharger**")
             
-            if st.button("📤 Upload Files", type="primary"):
+            # Check if index exists to offer incremental indexing
+            with st.spinner("🔄 Vérification de l'index..."):
+                stats = get_index_stats()
+            index_exists = stats["index_exists"] and stats["mapping_exists"]
+            
+            # Choose indexing method
+            if index_exists:
+                st.info("💡 **Astuce**: L'indexation incrémentale ajoute seulement les nouveaux documents (plus rapide)")
+                indexing_method = st.radio(
+                    "Méthode d'indexation:",
+                    ["incremental", "rebuild"],
+                    format_func=lambda x: "🚀 Incrémentale (recommandé)" if x == "incremental" else "🔄 Reconstruire tout l'index",
+                    horizontal=True
+                )
+            else:
+                st.warning("⚠️ Aucun index existant. Les documents seront ajoutés et un nouvel index sera créé.")
+                indexing_method = "rebuild"
+            
+            if st.button("📤 Télécharger & Indexer", type="primary"):
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
                 successful = 0
                 failed = 0
+                uploaded_docs_info = []
                 
+                # Step 1: Upload all files first
                 for idx, uploaded_file in enumerate(uploaded_files):
-                    status_text.text(f"Processing {idx + 1}/{len(uploaded_files)}: {uploaded_file.name}")
+                    status_text.text(f"⬆️ Téléchargement {idx + 1}/{len(uploaded_files)}: {uploaded_file.name}")
                     
                     try:
                         # Read file content
@@ -114,6 +138,11 @@ def render_document_management():
                         )
                         
                         successful += 1
+                        uploaded_docs_info.append({
+                            "id": doc_id,
+                            "filename": uploaded_file.name,
+                            "file_path": file_path
+                        })
                         st.success(f"✅ {uploaded_file.name} uploaded successfully")
                     
                     except Exception as e:
@@ -124,28 +153,116 @@ def render_document_management():
                     progress_bar.progress((idx + 1) / len(uploaded_files))
                 
                 st.info(f"✅ Uploaded: {successful} | ❌ Failed: {failed}")
+                
+                # Step 2: Index the uploaded documents
+                if successful > 0 and uploaded_docs_info:
+                    st.divider()
+                    status_text.text("📊 Indexing documents...")
+                    
+                    if indexing_method == "incremental" and index_exists:
+                        # Incremental indexing
+                        indexed_successfully = 0
+                        index_failed = 0
+                        
+                        for doc_info in uploaded_docs_info:
+                            status_text.text(f"Indexing: {doc_info['filename']}...")
+                            
+                            def progress_callback(message):
+                                status_text.text(f"{doc_info['filename']}: {message}")
+                            
+                            success, message, index_stats = add_document_to_index(
+                                doc_info["file_path"],
+                                doc_info["filename"],
+                                progress_callback
+                            )
+                            
+                            if success:
+                                # Mark as indexed
+                                mark_document_as_indexed(
+                                    doc_info["id"], 
+                                    index_stats.get("chunks_added", 0)
+                                )
+                                indexed_successfully += 1
+                                st.success(f"✅ {doc_info['filename']}: {message}")
+                            else:
+                                st.error(f"❌ {doc_info['filename']}: {message}")
+                                index_failed += 1
+                        
+                        if indexed_successfully > 0:
+                            st.success(f"🎉 {indexed_successfully} document(s) indexed successfully!")
+                            
+                            # Recharger l'index RAG automatiquement
+                            status_text.text("🔄 Reloading RAG index...")
+                            try:
+                                # Import ici pour éviter les dépendances circulaires
+                                import streamlit as st_reload
+                                if 'rag_instance' in st_reload.session_state:
+                                    if hasattr(st_reload.session_state.rag_instance, 'reload_index'):
+                                        if st_reload.session_state.rag_instance.reload_index():
+                                            st.success("✅ RAG index rechargé ! Les nouveaux documents sont immédiatement disponibles.")
+                                        else:
+                                            st.warning("⚠️ Impossible de recharger l'index RAG. Veuillez redémarrer l'application.")
+                                    else:
+                                        st.info("ℹ️ Redémarrez l'application pour utiliser les nouveaux documents dans le RAG.")
+                                else:
+                                    st.info("ℹ️ Les documents sont indexés. Redémarrez l'application pour les utiliser dans le RAG.")
+                            except Exception as e:
+                                st.info("ℹ️ Documents indexés. Redémarrez l'application pour les utiliser dans le RAG.")
+                            
+                            st.rerun()
+                    
+                    else:
+                        # Rebuild entire index
+                        status_text.text("🔄 Rebuilding entire index...")
+                        
+                        def progress_callback(message):
+                            status_text.text(message)
+                        
+                        success, message, index_stats = rebuild_index(progress_callback)
+                        
+                        if success:
+                            st.success(f"✅ {message}")
+                            
+                            # Mark all uploaded documents as indexed
+                            for doc_info in uploaded_docs_info:
+                                mark_document_as_indexed(
+                                    doc_info["id"],
+                                    0  # Will be updated properly in rebuild
+                                )
+                            
+                            st.json({
+                                "Documents": index_stats.get("document_count"),
+                                "Chunks Créés": index_stats.get("chunk_count"),
+                                "Dimension des Embeddings": index_stats.get("embedding_dim"),
+                            })
+                            
+                            st.info("✅ Les documents sont maintenant prêts pour les requêtes RAG !")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ {message}")
     
     # ===== TAB 2: Indexed Documents =====
     with doc_tabs[1]:
-        st.subheader("Indexed Documents")
+        st.subheader("📁 Documents Indexés")
         
-        # Get processed documents
-        processed_docs = get_processed_documents()
+        # Get processed documents with spinner
+        with st.spinner("🔄 Chargement des documents..."):
+            processed_docs = get_processed_documents()
         
         if not processed_docs:
-            st.info("No documents have been uploaded yet.")
+            st.info("📄 Aucun document n'a encore été téléchargé.")
         else:
             # Create DataFrame for display
             df_data = []
             for doc in processed_docs:
                 df_data.append({
-                    "Filename": doc.get("filename", ""),
+                    "Nom du fichier": doc.get("filename", ""),
                     "Type": doc.get("type", "").upper(),
-                    "Size": format_bytes(doc.get("file_size", 0)),
-                    "Content": f"{doc.get('content_length', 0)} chars",
+                    "Taille": format_bytes(doc.get("file_size", 0)),
+                    "Contenu": f"{doc.get('content_length', 0)} chars",
                     "Chunks": doc.get("chunk_count", "—"),
-                    "Indexed": "✅ Yes" if doc.get("indexed") else "❌ No",
-                    "Uploaded": format_datetime(doc.get("uploaded_at", "")),
+                    "Indexé": "✅ Oui" if doc.get("indexed") else "❌ Non",
+                    "Téléchargé": format_datetime(doc.get("uploaded_at", "")),
                     "ID": doc.get("id", "")
                 })
             
@@ -154,31 +271,32 @@ def render_document_management():
             # Display table
             st.dataframe(
                 df.drop("ID", axis=1),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True
             )
             
             # Actions on documents
-            st.subheader("Manage Documents")
+            st.subheader("⚙️ Gérer les Documents")
             col1, col2 = st.columns(2)
             
             with col1:
                 doc_to_delete = st.selectbox(
-                    "Select document to delete",
+                    "Sélectionner un document à supprimer",
                     [doc["filename"] for doc in processed_docs],
                     key="delete_doc"
                 )
                 
-                if st.button("🗑️ Delete Selected Document", type="secondary"):
-                    doc_id = next(doc["id"] for doc in processed_docs if doc["filename"] == doc_to_delete)
-                    if delete_document(doc_id):
-                        st.success(f"✅ {doc_to_delete} deleted successfully")
-                        st.rerun()
-                    else:
-                        st.error("Failed to delete document")
+                if st.button("🗑️ Supprimer le Document", type="secondary"):
+                    with st.spinner("🔄 Suppression en cours..."):
+                        doc_id = next(doc["id"] for doc in processed_docs if doc["filename"] == doc_to_delete)
+                        if delete_document(doc_id):
+                            st.success(f"✅ {doc_to_delete} supprimé avec succès")
+                            st.rerun()
+                        else:
+                            st.error("❌ Échec de la suppression du document")
             
             with col2:
-                st.write("**Statistics:**")
+                st.write("**Statistiques :**")
                 stats = get_index_stats()
                 col_a, col_b, col_c = st.columns(3)
                 
@@ -187,7 +305,7 @@ def render_document_management():
                 
                 with col_b:
                     indexed_count = sum(1 for doc in processed_docs if doc.get("indexed"))
-                    st.metric("Indexed", indexed_count)
+                    st.metric("Indexés", indexed_count)
                 
                 with col_c:
                     if stats.get("chunk_count"):
@@ -195,10 +313,11 @@ def render_document_management():
     
     # ===== TAB 3: Index Status & Rebuild =====
     with doc_tabs[2]:
-        st.subheader("Index Status")
+        st.subheader("📊 Statut de l'Index")
         
-        # Get current index stats
-        stats = get_index_stats()
+        # Get current index stats with spinner
+        with st.spinner("🔄 Vérification de l'index..."):
+            stats = get_index_stats()
         
         if stats["index_exists"] and stats["mapping_exists"]:
             col1, col2, col3, col4 = st.columns(4)
@@ -210,26 +329,53 @@ def render_document_management():
                 st.metric("Chunks", stats.get("chunk_count", "—"))
             
             with col3:
-                st.metric("Embedding Dim", stats.get("embedding_dim", "—"))
+                st.metric("Dim. Embedding", stats.get("embedding_dim", "—"))
             
             with col4:
-                st.metric("Status", "✅ Ready")
+                st.metric("Statut", "✅ Prêt")
+            
+            st.divider()
+            
+            # Bouton pour recharger l'index RAG manuellement
+            st.subheader("🔄 Recharger l'Index RAG")
+            st.write("""
+            Si vous avez ajouté des documents mais que le chatbot ne les trouve pas, 
+            cliquez ici pour forcer le rechargement de l'index dans le système RAG.
+            """)
+            
+            if st.button("🔄 Recharger l'Index RAG Maintenant", type="primary", key="reload_rag_btn"):
+                with st.spinner("🔄 Rechargement de l'index RAG..."):
+                    try:
+                        import streamlit as st_reload
+                        if 'rag_instance' in st_reload.session_state:
+                            if hasattr(st_reload.session_state.rag_instance, 'reload_index'):
+                                if st_reload.session_state.rag_instance.reload_index():
+                                    st.success("✅ Index RAG rechargé avec succès ! Les nouveaux documents sont maintenant disponibles.")
+                                else:
+                                    st.error("❌ Échec du rechargement. Redémarrez l'application.")
+                            else:
+                                st.warning("⚠️ La fonction reload_index n'est pas disponible. Redémarrez l'application.")
+                        else:
+                            st.warning("⚠️ Instance RAG non trouvée. Redémarrez l'application pour utiliser les nouveaux documents.")
+                    except Exception as e:
+                        st.error(f"❌ Erreur : {str(e)}")
+                        st.info("💡 Solution : Redémarrez l'application Streamlit.")
             
             st.divider()
         else:
-            st.warning("No index exists yet. Upload documents and rebuild the index.")
+            st.warning("⚠️ Aucun index n'existe encore. Téléchargez des documents et reconstruisez l'index.")
         
         # Rebuild index section
-        st.subheader("Rebuild Index")
+        st.subheader("🔄 Reconstruire l'Index")
         st.write("""
-        Click the button below to rebuild the FAISS index with all uploaded documents.
-        This process will:
-        1. Load all uploaded documents
-        2. Split them into chunks
-        3. Generate embeddings
-        4. Build the FAISS index
+        Cliquez sur le bouton ci-dessous pour reconstruire l'index FAISS avec tous les documents téléchargés.
+        Ce processus va :
+        1. Charger tous les documents téléchargés
+        2. Les diviser en chunks
+        3. Générer les embeddings
+        4. Construire l'index FAISS
         
-        This may take a few minutes depending on the number of documents.
+        Cela peut prendre quelques minutes selon le nombre de documents.
         """)
         
         # Check if there are documents to index
@@ -237,10 +383,10 @@ def render_document_management():
         non_indexed = [doc for doc in processed_docs if not doc.get("indexed")]
         
         if not processed_docs:
-            st.info("No documents available to index. Please upload documents first.")
+            st.info("📄 Aucun document disponible à indexer. Veuillez d'abord télécharger des documents.")
         else:
-            if st.button("🔄 Rebuild Index", type="primary", key="rebuild_btn"):
-                with st.spinner("Rebuilding index... This may take a few minutes."):
+            if st.button("🔄 Reconstruire l'Index", type="primary", key="rebuild_btn"):
+                with st.spinner("🔄 Reconstruction de l'index en cours... Cela peut prendre quelques minutes."):
                     progress_placeholder = st.empty()
                     status_placeholder = st.empty()
                     

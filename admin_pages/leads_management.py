@@ -33,23 +33,24 @@ def format_datetime(iso_str: str) -> str:
 
 
 def render_leads_management():
-    """Render the leads management section"""
-    st.header("📋 Leads Management")
+    """Afficher la section de gestion des leads"""
+    st.header("📋 Gestion des Leads")
     
-    # Create tabs for different sections
-    leads_tabs = st.tabs(["All Leads", "Search Leads", "Add Lead Manually", "Export Data"])
+    # Créer des onglets pour différentes sections
+    leads_tabs = st.tabs(["📄 Tous les Leads", "🔍 Rechercher", "➕ Ajouter Manuellement", "📥 Exporter"])
     
     # ===== TAB 1: All Leads =====
     with leads_tabs[0]:
-        st.subheader("Collected Leads")
+        st.subheader("📊 Leads Collectés")
         
-        # Get all leads
-        leads = get_leads()
+        # Get all leads with spinner
+        with st.spinner("🔄 Chargement des leads..."):
+            leads = get_leads()
         
         if not leads:
-            st.info("No leads have been collected yet.")
+            st.info("📄 Aucun lead n'a encore été collecté.")
         else:
-            st.write(f"**Total Leads: {len(leads)}**")
+            st.write(f"**Total des Leads : {len(leads)}**")
             st.divider()
             
             # Create DataFrame for display
@@ -59,10 +60,10 @@ def render_leads_management():
                 
                 df_data.append({
                     "ID": lead.get("id", ""),
-                    "Name": lead.get("name", ""),
+                    "Nom": lead.get("name", ""),
                     "Email": lead.get("email", ""),
-                    "Education": lead.get("education", "—") or "—",
-                    "Program Interest": lead.get("program_of_interest", "—") or "—",
+                    "Éducation": lead.get("education", "—") or "—",
+                    "Programme": lead.get("program_of_interest", "—") or "—",
                     "Message": (lead.get("message", "")[:50] + "...") if lead.get("message") else "—",
                     "Date": created_at
                 })
@@ -72,14 +73,14 @@ def render_leads_management():
             # Display table
             st.dataframe(
                 df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     "ID": st.column_config.NumberColumn(width="small"),
-                    "Name": st.column_config.TextColumn(width="medium"),
+                    "Nom": st.column_config.TextColumn(width="medium"),
                     "Email": st.column_config.TextColumn(width="medium"),
-                    "Education": st.column_config.TextColumn(width="medium"),
-                    "Program Interest": st.column_config.TextColumn(width="medium"),
+                    "Éducation": st.column_config.TextColumn(width="medium"),
+                    "Programme": st.column_config.TextColumn(width="medium"),
                     "Message": st.column_config.TextColumn(width="large"),
                     "Date": st.column_config.TextColumn(width="medium")
                 }
@@ -88,12 +89,12 @@ def render_leads_management():
             st.divider()
             
             # Actions on leads
-            st.subheader("Manage Leads")
+            st.subheader("⚙️ Gestion des Leads")
             col1, col2 = st.columns(2)
             
             with col1:
                 selected_lead_id = st.selectbox(
-                    "Select a lead to view/edit",
+                    "Sélectionner un lead pour voir/modifier",
                     [f"ID {lead['id']}: {lead['name']} ({lead['email']})" for lead in leads],
                     key="select_lead"
                 )
@@ -104,37 +105,38 @@ def render_leads_management():
                     selected_lead = next((l for l in leads if l["id"] == lead_id), None)
                     
                     if selected_lead:
-                        st.write("**Lead Details:**")
+                        st.write("**Détails du Lead :**")
                         
                         col_detail1, col_detail2 = st.columns(2)
                         
                         with col_detail1:
-                            st.write(f"**Name:** {selected_lead.get('name', 'N/A')}")
-                            st.write(f"**Email:** {selected_lead.get('email', 'N/A')}")
+                            st.write(f"**Nom :** {selected_lead.get('name', 'N/A')}")
+                            st.write(f"**Email :** {selected_lead.get('email', 'N/A')}")
                         
                         with col_detail2:
-                            st.write(f"**Education:** {selected_lead.get('education', 'N/A')}")
-                            st.write(f"**Program:** {selected_lead.get('program_of_interest', 'N/A')}")
+                            st.write(f"Éducation :** {selected_lead.get('education', 'N/A')}")
+                            st.write(f"**Programme :** {selected_lead.get('program_of_interest', 'N/A')}")
                         
                         if selected_lead.get("message"):
-                            st.write(f"**Message:**")
+                            st.write(f"**Message :**")
                             st.text(selected_lead.get("message", ""))
                         
-                        st.write(f"**Collected:** {format_datetime(selected_lead.get('created_at', ''))}")
+                        st.write(f"**Collecté le :** {format_datetime(selected_lead.get('created_at', ''))}")
             
             with col2:
-                st.write("**Quick Actions:**")
+                st.write("**Actions Rapides :**")
                 
                 col_action1, col_action2 = st.columns(2)
                 
                 with col_action1:
-                    if st.button("🗑️ Delete Selected", type="secondary", key="delete_lead"):
-                        lead_id = int(selected_lead_id.split(":")[0].replace("ID ", ""))
-                        if delete_lead(lead_id):
-                            st.success("✅ Lead deleted successfully")
-                            st.rerun()
-                        else:
-                            st.error("Failed to delete lead")
+                    if st.button("🗑️ Supprimer", type="secondary", key="delete_lead"):
+                        with st.spinner("🔄 Suppression en cours..."):
+                            lead_id = int(selected_lead_id.split(":")[0].replace("ID ", ""))
+                            if delete_lead(lead_id):
+                                st.success("✅ Lead supprimé avec succès")
+                                st.rerun()
+                            else:
+                                st.error("❌ Échec de la suppression")
                 
                 with col_action2:
                     st.metric("Total Leads", len(leads))
@@ -142,7 +144,7 @@ def render_leads_management():
             st.divider()
             
             # Statistics
-            st.subheader("Statistics")
+            st.subheader("📊 Statistiques")
             col_stat1, col_stat2, col_stat3 = st.columns(3)
             
             with col_stat1:
@@ -150,24 +152,25 @@ def render_leads_management():
             
             with col_stat2:
                 unique_emails = len(set(l.get("email", "") for l in leads))
-                st.metric("Unique Emails", unique_emails)
+                st.metric("Emails Uniques", unique_emails)
             
             with col_stat3:
                 with_program = sum(1 for l in leads if l.get("program_of_interest"))
-                st.metric("With Program Interest", with_program)
+                st.metric("Avec Programme", with_program)
     
     # ===== TAB 2: Search Leads =====
     with leads_tabs[1]:
-        st.subheader("Search Leads")
+        st.subheader("🔍 Rechercher des Leads")
         
         search_query = st.text_input(
-            "Search by name or email",
-            placeholder="Type a name or email address",
-            help="Search will look for partial matches"
+            "Rechercher par nom ou email",
+            placeholder="Tapez un nom ou une adresse email",
+            help="La recherche cherchera des correspondances partielles"
         )
         
         if search_query:
-            results = search_leads(search_query)
+            with st.spinner("🔄 Recherche en cours..."):
+                results = search_leads(search_query)
             
             if not results:
                 st.warning(f"No leads found matching '{search_query}'")
@@ -193,7 +196,7 @@ def render_leads_management():
                 
                 st.dataframe(
                     df,
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True
                 )
         else:

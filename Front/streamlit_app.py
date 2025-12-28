@@ -4,16 +4,34 @@ Design: Minimalisme lumineux Scandinave - Très lisible, textes gros, espaces g�
 """
 import sys
 import os
+from pathlib import Path
 import streamlit as st
 import json
 from datetime import datetime
 
-# Ajouter le chemin des agents
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'Back', 'app', 'agents'))
+# Ajouter les chemins nécessaires pour les imports
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
 
+# Ajouter les chemins dans le bon ordre
+agents_path = os.path.join(PROJECT_ROOT, 'Back', 'app', 'agents')
+admin_path = os.path.join(PROJECT_ROOT, 'admin_pages')
+back_app_path = os.path.join(PROJECT_ROOT, 'Back', 'app')
+
+sys.path.insert(0, PROJECT_ROOT)
+sys.path.insert(0, back_app_path)
+sys.path.insert(0, agents_path)
+sys.path.insert(0, admin_path)
+
+# Import agents (directement depuis Back/app/agents/)
 from orchestrator import OrchestratorAgent
 from rag_agent import RAGAgent
 from contact_agent import ContactAgent
+
+# Import admin modules
+from auth import check_password, logout, is_authenticated
+from leads_management import render_leads_management
+from document_management import render_document_management
 
 # Configuration de la page
 st.set_page_config(
@@ -471,6 +489,7 @@ def init_session_state():
         st.session_state.pending_form = None
         st.session_state.agent_status = None
         st.session_state.admin_authenticated = False
+        st.session_state.admin_mode = False
 
 
 def initialize_agents():
@@ -484,6 +503,9 @@ def initialize_agents():
                 try:
                     rag_agent = RAGAgent()
                     orchestrator.register_agent(rag_agent)
+                    # Stocker l'instance RAG pour pouvoir la recharger plus tard
+                    if hasattr(rag_agent, 'rag_instance'):
+                        st.session_state.rag_instance = rag_agent.rag_instance
                 except Exception as e:
                     st.warning(f"RAG Agent non disponible: {e}")
                 
@@ -680,10 +702,54 @@ def display_chat_message(message):
             """, unsafe_allow_html=True)
 
 
+def render_admin_panel():
+    """Affiche le panel d'administration"""
+    st.markdown("""
+    <div style='text-align: center; padding: 2rem 0;'>
+        <h1>🔧 Administration ESILV</h1>
+        <p style='color: #666;'>Gestion des documents et des leads</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Bouton de déconnexion
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        if st.button("← Retour au chat", use_container_width=True):
+            st.session_state.admin_mode = False
+            st.rerun()
+    with col3:
+        if st.button("🔓 Déconnexion", use_container_width=True, type="secondary"):
+            logout()
+            st.session_state.admin_mode = False
+            st.rerun()
+    
+    st.divider()
+    
+    # Tabs pour les différentes sections admin
+    admin_tabs = st.tabs(["📄 Gestion des Documents", "📋 Gestion des Leads"])
+    
+    with admin_tabs[0]:
+        render_document_management()
+    
+    with admin_tabs[1]:
+        render_leads_management()
+
+
 def main():
     """Application principale"""
     init_session_state()
     
+    # Vérifier si on est en mode admin
+    if st.session_state.admin_mode:
+        # Vérifier l'authentification
+        if not check_password():
+            return  # L'utilisateur n'est pas encore authentifié
+        
+        # Afficher le panel admin
+        render_admin_panel()
+        return
+    
+    # Mode normal - Interface chatbot
     # Header avec logo
     logo_path = os.path.join(os.path.dirname(__file__), "assets", "esilv_logo.png")
     
@@ -762,7 +828,8 @@ def main():
         
         st.markdown('<div class="sidebar-title">🔐 Admin</div>', unsafe_allow_html=True)
         if st.button("Accès à l'interface admin", use_container_width=True):
-            st.info("Interface admin en développement")
+            st.session_state.admin_mode = True
+            st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
     

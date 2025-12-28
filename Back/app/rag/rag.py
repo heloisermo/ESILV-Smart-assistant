@@ -12,8 +12,11 @@ import re
 
 load_dotenv()
 
-INDEX_PATH = "data/faiss_index.bin"
-MAPPING_PATH = "data/faiss_mapping.json"
+# Utiliser des chemins absolus pour trouver les fichiers depuis n'importe où
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+INDEX_PATH = os.path.join(DATA_DIR, "faiss_index.bin")
+MAPPING_PATH = os.path.join(DATA_DIR, "faiss_mapping.json")
 
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 VERTEX_MODEL = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
@@ -68,6 +71,42 @@ class FaissRAGGemini:
         
         print(f"Index charge : {len(self.texts)} chunks")
         print(f"Modele Vertex AI : {VERTEX_MODEL}")
+
+    def reload_index(self):
+        """
+        Recharge l'index FAISS et le mapping depuis le disque.
+        Utile après l'ajout de nouveaux documents sans redémarrer l'application.
+        """
+        try:
+            if not os.path.exists(INDEX_PATH):
+                print(f"Index FAISS non trouvé: {INDEX_PATH}")
+                self.index = None
+                self.urls = []
+                self.texts = []
+                self.doc_indices = []
+                return False
+            
+            if not os.path.exists(MAPPING_PATH):
+                print(f"Mapping FAISS non trouvé: {MAPPING_PATH}")
+                self.index = None
+                self.urls = []
+                self.texts = []
+                self.doc_indices = []
+                return False
+            
+            # Recharger l'index et le mapping
+            self.index = faiss.read_index(INDEX_PATH)
+            with open(MAPPING_PATH, "r", encoding="utf-8") as f:
+                mapping = json.load(f)
+            self.urls = mapping["urls"]
+            self.texts = mapping["texts"]
+            self.doc_indices = mapping.get("doc_indices", None)
+            
+            print(f"✅ Index rechargé : {len(self.texts)} chunks")
+            return True
+        except Exception as e:
+            print(f"❌ Erreur lors du rechargement de l'index: {e}")
+            return False
 
     def retrieve(self, query, k=5):
         q_emb = self.model.encode(
