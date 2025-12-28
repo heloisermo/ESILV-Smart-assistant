@@ -5,18 +5,17 @@ requests>=2.31.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
 
-# LLM - Google Gemini
-google-generativeai>=0.3.0
-
-# Base de donnees vectorielle
-faiss-cpu>=1.7.4
-numpy>=1.24.0
-
-# Embeddings
-sentence-transformers>=2.2.0
+# LLM - Google Vertex AI
+google-cloud-aiplatform>=1.26.0
 
 # Gestion des variables d'environnement
 python-dotenv>=1.0.0
 
-# Interface Streamlit
+# Streamlit - UI framework
 streamlit>=1.28.0
+
+# PDF processing
+PyPDF2>=3.0.0
+
+# Data manipulation
+pandas>=2.0.0

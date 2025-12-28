@@ -3,12 +3,13 @@ Agent de contact pour gérer les demandes de contact avec l'ESILV
 """
 import os
 import json
-import requests
+import vertexai
+from vertexai.generative_models import GenerativeModel
 from typing import Dict, Any
 from datetime import datetime
 from dotenv import load_dotenv
 
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 load_dotenv()
 
@@ -53,12 +54,16 @@ class ContactAgent(BaseAgent):
         super().__init__("Contact Agent")
         
         # Configurer Vertex AI pour générer des réponses personnalisées
-        self.api_key = os.getenv("VERTEX_API_KEY")
-        if self.api_key:
-            model = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
-            self.api_endpoint = f"https://aiplatform.googleapis.com/v1/publishers/google/models/{model}:generateContent"
-        else:
-            self.api_endpoint = None
+        project_id = os.getenv("VERTEX_PROJECT", "esilv-smart-assistant")
+        location = os.getenv("VERTEX_LOCATION", "us-central1")
+        
+        try:
+            vertexai.init(project=project_id, location=location)
+            model_name = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
+            self.llm = GenerativeModel(model_name)
+        except Exception as e:
+            print(f"⚠️ Erreur initialisation Vertex AI: {e}")
+            self.llm = None
         
         print(f"✅ {self.name} initialisé avec succès")
     
@@ -201,7 +206,7 @@ class ContactAgent(BaseAgent):
         """
         Génère une demande de remplissage de formulaire
         """
-        if self.api_endpoint:
+        if self.llm:
             try:
                 prompt = f"""Tu es un assistant pour l'ESILV. Un utilisateur veut contacter le service {service}.
 
@@ -222,16 +227,8 @@ Génère une réponse courte et amicale en français qui:
 
 Réponse:"""
                 
-                url = f"{self.api_endpoint}?key={self.api_key}"
-                payload = {
-                    "contents": [{"role": "user", "parts": [{"text": prompt}]}]
-                }
-                response = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=15)
-                response.raise_for_status()
-                
-                result = response.json()
-                if "candidates" in result and len(result["candidates"]) > 0:
-                    return result["candidates"][0]["content"]["parts"][0]["text"].strip()
+                response = self.llm.generate_content(prompt)
+                return response.text.strip()
             except Exception as e:
                 print(f"⚠️ Erreur Vertex AI: {e}")
         

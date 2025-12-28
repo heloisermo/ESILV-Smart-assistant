@@ -3,11 +3,12 @@ Agent orchestrateur qui route les requêtes vers les agents appropriés
 """
 import os
 import re
-import requests
+import vertexai
+from vertexai.generative_models import GenerativeModel
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 load_dotenv()
 
@@ -26,13 +27,17 @@ class OrchestratorAgent:
         """
         self.agents = agents or []
         
-        # Configurer Vertex AI pour l'analyse d'intention
-        self.api_key = os.getenv("VERTEX_API_KEY")
-        if self.api_key:
-            model = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
-            self.api_endpoint = f"https://aiplatform.googleapis.com/v1/publishers/google/models/{model}:generateContent"
-        else:
-            self.api_endpoint = None
+        # Configurer Vertex AI
+        project_id = os.getenv("VERTEX_PROJECT", "esilv-smart-assistant")
+        location = os.getenv("VERTEX_LOCATION", "us-central1")
+        
+        try:
+            vertexai.init(project=project_id, location=location)
+            model_name = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
+            self.llm = GenerativeModel(model_name)
+        except Exception as e:
+            print(f"⚠️ Erreur initialisation Vertex AI: {e}")
+            self.llm = None
     
     def register_agent(self, agent: BaseAgent):
         """Enregistre un nouvel agent"""
@@ -70,8 +75,8 @@ class OrchestratorAgent:
         has_contact = any(keyword in query_lower for keyword in contact_keywords)
         has_info = any(keyword in query_lower for keyword in info_keywords)
         
-        # Utiliser Vertex AI pour une analyse plus fine si disponible
-        if self.api_endpoint and not (has_contact or has_info):
+        # Utiliser Gemini pour une analyse plus fine si disponible
+        if self.llm and not (has_contact or has_info):
             try:
                 prompt = f"""Analyse cette requête et détermine l'intention principale.
 Réponds UNIQUEMENT par un seul mot: 'information', 'contact', ou 'other'
@@ -79,19 +84,11 @@ Réponds UNIQUEMENT par un seul mot: 'information', 'contact', ou 'other'
 Requête: {query}
 
 Intention:"""
+                response = self.llm.generate_content(prompt)
+                intent = response.text.strip().lower()
                 
-                url = f"{self.api_endpoint}?key={self.api_key}"
-                payload = {
-                    "contents": [{"role": "user", "parts": [{"text": prompt}]}]
-                }
-                response = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=10)
-                response.raise_for_status()
-                
-                result = response.json()
-                if "candidates" in result and len(result["candidates"]) > 0:
-                    intent = result["candidates"][0]["content"]["parts"][0]["text"].strip().lower()
-                    if intent in ['information', 'contact', 'other']:
-                        return intent
+                if intent in ['information', 'contact', 'other']:
+                    return intent
             except Exception as e:
                 print(f"Erreur lors de l'analyse d'intention avec LLM: {e}")
         

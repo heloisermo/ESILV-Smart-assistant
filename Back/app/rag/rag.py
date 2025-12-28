@@ -3,6 +3,8 @@ import json
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
+import vertexai
+from vertexai.generative_models import GenerativeModel
 from dotenv import load_dotenv
 import requests
 from bs4 import BeautifulSoup
@@ -15,8 +17,8 @@ MAPPING_PATH = "data/faiss_mapping.json"
 
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 VERTEX_MODEL = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
-VERTEX_API_KEY = os.getenv("VERTEX_API_KEY")
-VERTEX_API_ENDPOINT = f"https://aiplatform.googleapis.com/v1/publishers/google/models/{VERTEX_MODEL}:generateContent"
+VERTEX_PROJECT = os.getenv("VERTEX_PROJECT", "esilv-smart-assistant")
+VERTEX_LOCATION = os.getenv("VERTEX_LOCATION", "us-central1")
 
 SYSTEM_PROMPT = os.getenv(
     "SYSTEM_PROMPT", 
@@ -27,11 +29,32 @@ SYSTEM_PROMPT = os.getenv(
 
 class FaissRAGGemini:
     def __init__(self):
-        if not VERTEX_API_KEY:
-            raise ValueError("VERTEX_API_KEY manquante dans .env")
+        try:
+            # Configurer Vertex AI
+            vertexai.init(project=VERTEX_PROJECT, location=VERTEX_LOCATION)
+            self.llm = GenerativeModel(VERTEX_MODEL)
+        except Exception as e:
+            raise ValueError(f"Erreur initialisation Vertex AI: {e}")
         
-        self.api_key = VERTEX_API_KEY
-        self.api_endpoint = VERTEX_API_ENDPOINT
+        # Vérifier que l'index existe
+        if not os.path.exists(INDEX_PATH):
+            print(f"⚠️ Index FAISS non trouvé: {INDEX_PATH}")
+            print("📌 Crée d'abord des documents via l'Administration > Document Management")
+            self.index = None
+            self.urls = []
+            self.texts = []
+            self.doc_indices = []
+            self.model = SentenceTransformer(MODEL_NAME)
+            return
+        
+        if not os.path.exists(MAPPING_PATH):
+            print(f"⚠️ Mapping FAISS non trouvé: {MAPPING_PATH}")
+            self.index = None
+            self.urls = []
+            self.texts = []
+            self.doc_indices = []
+            self.model = SentenceTransformer(MODEL_NAME)
+            return
         
         self.index = faiss.read_index(INDEX_PATH)
         with open(MAPPING_PATH, "r", encoding="utf-8") as f:
@@ -147,88 +170,29 @@ class FaissRAGGemini:
 
 
     def _generate(self, system_prompt: str, user_prompt: str) -> str:
-        """Génère une réponse avec Vertex AI via API REST"""
+        """Génère une réponse avec Google Gemini"""
         try:
-            # Combiner system prompt et user prompt
+            # Gemini n'a pas de system prompt séparé, on le combine avec le user prompt
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             
-            # Préparer la requête
-            url = f"{self.api_endpoint}?key={self.api_key}"
-            headers = {"Content-Type": "application/json"}
-            payload = {
-                "contents": [{
-                    "role": "user",
-                    "parts": [{"text": full_prompt}]
-                }],
-                "generationConfig": {
-                    "temperature": 0.7,
-                    "maxOutputTokens": 1024,
-                }
-            }
+            response = self.llm.generate_content(
+                full_prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.7,
+                    max_output_tokens=1024,
+                )
+            )
             
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
-            
-            result = response.json()
-            if "candidates" in result and len(result["candidates"]) > 0:
-                text = result["candidates"][0]["content"]["parts"][0]["text"]
-                return text.strip()
-            else:
-                print(f"Réponse inattendue de l'API: {result}")
-                return None
+            return response.text.strip()
             
         except Exception as e:
-            print(f"Erreur Vertex AI: {e}")
+            print(f"Erreur Gemini: {e}")
             print(f"Type d'erreur: {type(e).__name__}")
             import traceback
             traceback.print_exc()
             return None
-    
-    def _generate_stream(self, system_prompt: str, user_prompt: str):
-        """Génère une réponse en streaming avec Vertex AI"""
-        try:
-            # Combiner system prompt et user prompt
-            full_prompt = f"{system_prompt}\n\n{user_prompt}"
-            
-            # Préparer la requête en mode streaming
-            url = f"{self.api_endpoint.replace('generateContent', 'streamGenerateContent')}?key={self.api_key}"
-            headers = {"Content-Type": "application/json"}
-            payload = {
-                "contents": [{
-                    "role": "user",
-                    "parts": [{"text": full_prompt}]
-                }],
-                "generationConfig": {
-                    "temperature": 0.7,
-                    "maxOutputTokens": 1024,
-                }
-            }
-            
-            response = requests.post(url, headers=headers, json=payload, timeout=30, stream=True)
-            response.raise_for_status()
-            
-            # Parser le stream
-            for line in response.iter_lines():
-                if line:
-                    line_str = line.decode('utf-8')
-                    # Les réponses sont au format JSON avec préfixe "data: "
-                    if line_str.startswith('data: '):
-                        json_str = line_str[6:]  # Enlever "data: "
-                        if json_str.strip():
-                            try:
-                                data = json.loads(json_str)
-                                if "candidates" in data and len(data["candidates"]) > 0:
-                                    parts = data["candidates"][0]["content"]["parts"]
-                                    if parts and "text" in parts[0]:
-                                        yield parts[0]["text"]
-                            except json.JSONDecodeError:
-                                continue
-            
-        except Exception as e:
-            print(f"Erreur Vertex AI streaming: {e}")
-            yield f"Erreur: {str(e)}"
 
-    def answer(self, question: str, k: int = 5, fallback_mode: bool = True, enable_web_search: bool = True, stream: bool = False):
+    def answer(self, question: str, k: int = 5, fallback_mode: bool = True, enable_web_search: bool = True):
         """Répond à une question en utilisant le RAG et le scraping en temps réel si nécessaire"""
         docs = self.retrieve(question, k=k)
         
@@ -262,26 +226,14 @@ class FaissRAGGemini:
             "Si l'information n'est pas dans les extraits, dis-le clairement."
         )
         
-        if stream:
-            # Mode streaming
-            def generate():
-                full_response = ""
-                for chunk in self._generate_stream(SYSTEM_PROMPT, user_prompt):
-                    full_response += chunk
-                    yield chunk
-                # Retourner aussi les docs à la fin
-                yield {"docs": docs, "full_response": full_response}
-            return generate()
-        else:
-            # Mode normal
-            ans = self._generate(SYSTEM_PROMPT, user_prompt)
-            
-            # Mode fallback si Vertex AI est indisponible
-            if ans is None and fallback_mode:
-                print("\nVertex AI est indisponible. Voici un resume basique des documents trouves:")
-                ans = self._fallback_answer(docs, question)
-            
-            return ans, docs
+        ans = self._generate(SYSTEM_PROMPT, user_prompt)
+        
+        # Mode fallback si Gemini est indisponible
+        if ans is None and fallback_mode:
+            print("\nGemini est indisponible. Voici un resume basique des documents trouves:")
+            ans = self._fallback_answer(docs, question)
+        
+        return ans, docs
     
     def _fallback_answer(self, docs, question):
         """Réponse de secours sans LLM"""
@@ -297,7 +249,7 @@ class FaissRAGGemini:
         return (
             f"Voici les extraits les plus pertinents trouves pour votre question:\n\n" +
             "\n\n".join(snippets) +
-            "\n\nReponse generee sans IA (Vertex AI indisponible). "
+            "\n\nReponse generee sans IA (Gemini indisponible). "
             "Consultez les sources ci-dessous pour plus de details."
         )
 
@@ -307,15 +259,15 @@ if __name__ == "__main__":
         rag = FaissRAGGemini()
     except ValueError as e:
         print(e)
-        print("\nPour configurer Vertex AI:")
-        print("1. Va sur Google Cloud Console")
+        print("\nPour obtenir une cle API Vertex AI:")
+        print("1. Va sur https://console.cloud.google.com/")
         print("2. Active l'API Vertex AI")
-        print("3. Cree des credentials (service account key JSON)")
-        print("4. Ajoute le chemin dans ton .env: VERTEX_API_KEY=chemin/vers/credentials.json")
+        print("3. Cree une cle de service")
+        print("4. Ajoute les variables dans ton .env")
         exit(1)
     
     print("\n" + "="*60)
-    print("Chatbot RAG avec Vertex AI pret !")
+    print("Chatbot RAG avec Google Vertex AI pret !")
     print("="*60 + "\n")
     
     while True:
