@@ -485,7 +485,7 @@ def initialize_agents():
                     rag_agent = RAGAgent()
                     orchestrator.register_agent(rag_agent)
                 except Exception as e:
-                    st.warning(f"⚠️ RAG Agent non disponible: {e}")
+                    st.warning(f"RAG Agent non disponible: {e}")
                 
                 contact_agent = ContactAgent()
                 orchestrator.register_agent(contact_agent)
@@ -493,10 +493,10 @@ def initialize_agents():
                 st.session_state.orchestrator = orchestrator
                 st.session_state.contact_agent = contact_agent
                 st.session_state.initialized = True
-                st.session_state.agent_status = f"✅ Agents disponibles: {', '.join(orchestrator.list_agents())}"
+                st.session_state.agent_status = f"Agents disponibles: {', '.join(orchestrator.list_agents())}"
                 
             except Exception as e:
-                st.error(f"❌ Erreur d'initialisation: {e}")
+                st.error(f"Erreur d'initialisation: {e}")
                 return False
     
     return True
@@ -556,7 +556,7 @@ JSON:"""
                 form_data = json.loads(json_match.group())
                 return {k: v if v != "null" and v else None for k, v in form_data.items()}
     except Exception as e:
-        st.warning(f"⚠️ Erreur extraction: {e}")
+        st.warning(f"Erreur extraction: {e}")
     
     return None
 
@@ -583,7 +583,7 @@ def handle_form_input(user_input):
         return {
             "success": True,
             "agent_used": "Contact Agent",
-            "response": f"📝 Merci ! Il me manque encore : {', '.join(missing)}.\n\nPouvez-vous me les fournir ?",
+            "response": f"Merci ! Il me manque encore : {', '.join(missing)}.\n\nPouvez-vous me les fournir ?",
             "stream": False
         }
     
@@ -650,7 +650,7 @@ def display_chat_message(message):
         st.markdown(f"""
         <div class="chat-message user-message">
             <div class="message-wrapper">
-                <div class="message-avatar user-avatar">👤</div>
+                <div class="message-avatar user-avatar">U</div>
                 <div style="flex: 1;">
                     <div class="message-content">
                         <p>{content}</p>
@@ -662,7 +662,7 @@ def display_chat_message(message):
         """, unsafe_allow_html=True)
     else:
         agent = message.get("agent", "Assistant")
-        agent_emoji = "🤖" if agent == "RAG Agent" else "📞" if agent == "Contact Agent" else "✨"
+        agent_emoji = "R" if agent == "RAG Agent" else "C" if agent == "Contact Agent" else "A"
         
         st.markdown(f"""
         <div class="chat-message assistant-message">
@@ -683,7 +683,7 @@ def display_chat_message(message):
         if message.get("form_info"):
             st.markdown(f"""
             <div class="form-info">
-                <strong>📋 Formulaire de contact créé</strong>
+                <strong>Formulaire de contact créé</strong>
                 <div class="form-info-item"><strong>Service :</strong> {message['form_info']['service']}</div>
                 <div class="form-info-item"><strong>Email :</strong> {message['form_info']['email']}</div>
             </div>
@@ -721,38 +721,38 @@ def main():
     with st.sidebar:
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
         
-        st.markdown('<div class="sidebar-title">⚙️ Outils</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-title">Outils</div>', unsafe_allow_html=True)
         
         col_reset1, col_reset2 = st.columns(2)
         with col_reset1:
-            if st.button("🔄 Réinitialiser", use_container_width=True):
+            if st.button("Réinitialiser", use_container_width=True):
                 st.session_state.messages = []
                 st.session_state.pending_form = None
                 st.rerun()
         
         with col_reset2:
-            if st.button("🔧 Réinit. agents", use_container_width=True):
+            if st.button("Réinit. agents", use_container_width=True):
                 st.session_state.initialized = False
                 st.rerun()
         
         st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
         
-        st.markdown('<div class="sidebar-title">📊 État</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-title">État</div>', unsafe_allow_html=True)
         if st.session_state.agent_status:
             st.markdown(f'<div class="status-badge">{st.session_state.agent_status}</div>', unsafe_allow_html=True)
         else:
-            st.info("🔄 Initialisation en cours...")
+            st.info("Initialisation en cours...")
         
         if st.session_state.pending_form:
-            st.warning("📝 Formulaire en cours de remplissage")
+            st.warning("Formulaire en cours de remplissage")
             with st.expander("Voir les champs"):
                 for key, value in st.session_state.pending_form["fields"].items():
-                    status = "✅" if value else "❌"
+                    status = "OK" if value else "--"
                     st.text(f"{status} {key.capitalize()}: {value or 'Non fourni'}")
         
         st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
         
-        st.markdown('<div class="sidebar-title">💡 Exemples de questions</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-title">Exemples de questions</div>', unsafe_allow_html=True)
         examples = [
             "Qu'est-ce que l'ESILV ?",
             "Quels sont les programmes ?",
@@ -817,7 +817,7 @@ def main():
             else:
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": f"❌ Erreur: {result.get('error', 'Erreur inconnue')}",
+                    "content": f"Erreur: {result.get('error', 'Erreur inconnue')}",
                     "agent": "Système",
                     "timestamp": datetime.now().strftime("%H:%M")
                 })
@@ -870,7 +870,7 @@ def main():
                 else:
                     st.session_state.messages.append({
                         "role": "assistant",
-                        "content": f"❌ Erreur: {result.get('error', 'Erreur inconnue')}",
+                        "content": f"Erreur: {result.get('error', 'Erreur inconnue')}",
                         "agent": "Système",
                         "timestamp": datetime.now().strftime("%H:%M")
                     })

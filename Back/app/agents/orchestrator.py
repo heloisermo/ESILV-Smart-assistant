@@ -36,7 +36,7 @@ class OrchestratorAgent:
             model_name = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
             self.llm = GenerativeModel(model_name)
         except Exception as e:
-            print(f"⚠️ Erreur initialisation Vertex AI: {e}")
+            print(f"Erreur initialisation Vertex AI: {e}")
             self.llm = None
     
     def register_agent(self, agent: BaseAgent):
@@ -121,19 +121,19 @@ Intention:"""
         
         # Analyser l'intention
         intent = self._analyze_intent(query)
-        print(f"\n🎯 Intention détectée: {intent}")
+        print(f"\nIntention détectée: {intent}")
         
         # Trouver le premier agent capable de traiter la requête
         for agent in self.agents:
             if agent.can_handle(query, context):
-                print(f"✅ Routage vers: {agent.name}")
+                print(f"Routage vers: {agent.name}")
                 try:
                     result = agent.process(query, context)
                     result["agent_used"] = agent.name
                     result["intent"] = intent
                     return result
                 except Exception as e:
-                    print(f"❌ Erreur lors du traitement par {agent.name}: {e}")
+                    print(f"Erreur lors du traitement par {agent.name}: {e}")
                     continue
         
         # Aucun agent n'a pu traiter la requête

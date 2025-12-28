@@ -42,7 +42,7 @@ class RAGAgent(BaseAgent):
             # Vérifier que Vertex AI est configuré
             project_id = os.getenv("VERTEX_PROJECT")
             if not project_id:
-                print(f"⚠️ VERTEX_PROJECT non trouvé. Chemin .env: {env_path}")
+                print(f"VERTEX_PROJECT non trouvé. Chemin .env: {env_path}")
                 self.rag_system = None
                 return
             
@@ -55,9 +55,9 @@ class RAGAgent(BaseAgent):
             # Revenir au répertoire original
             os.chdir(original_dir)
             
-            print(f"✅ {self.name} initialisé avec succès")
+            print(f"{self.name} initialisé avec succès")
         except Exception as e:
-            print(f"❌ Erreur lors de l'initialisation du RAG: {e}")
+            print(f"Erreur lors de l'initialisation du RAG: {e}")
             import traceback
             traceback.print_exc()
             self.rag_system = None
@@ -70,23 +70,20 @@ class RAGAgent(BaseAgent):
     def can_handle(self, query: str, context: Dict[str, Any] = None) -> bool:
         """
         Détermine si cet agent peut traiter la requête
-        Le RAG agent traite toutes les questions d'information sur l'ESILV
         """
         if not self.rag_system:
             return False
         
         query_lower = query.lower()
         
-        # Mots-clés indiquant une demande de contact (ne pas gérer)
+        # Mots-clés de contact à éviter
         contact_keywords = [
             'contacter', 'joindre', 'appeler', 'téléphone', 'email',
             'mail', 'écrire', 'parler', 'rencontrer', 'rendez-vous'
         ]
         
-        # Si la requête contient principalement des mots-clés de contact
         is_contact_request = any(keyword in query_lower for keyword in contact_keywords)
         
-        # L'agent RAG gère tout sauf les demandes de contact pures
         return not is_contact_request
     
     def process(self, query: str, context: Dict[str, Any] = None) -> Dict[str, Any]:

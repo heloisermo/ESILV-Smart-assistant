@@ -19,7 +19,7 @@ class ContactAgent(BaseAgent):
     Agent qui gère les demandes de contact avec l'ESILV
     """
     
-    # Informations de contact de l'ESILV (à personnaliser selon vos besoins)
+    # Informations de contact de l'ESILV
     CONTACT_INFO = {
         "adresse": "12 Avenue Léonard de Vinci, 92400 Courbevoie, France",
         "telephone": "+33 1 41 16 70 00",
@@ -53,7 +53,7 @@ class ContactAgent(BaseAgent):
     def __init__(self):
         super().__init__("Contact Agent")
         
-        # Configurer Vertex AI pour générer des réponses personnalisées
+        # Configuration Vertex AI
         project_id = os.getenv("VERTEX_PROJECT", "esilv-smart-assistant")
         location = os.getenv("VERTEX_LOCATION", "us-central1")
         
@@ -62,19 +62,18 @@ class ContactAgent(BaseAgent):
             model_name = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
             self.llm = GenerativeModel(model_name)
         except Exception as e:
-            print(f"⚠️ Erreur initialisation Vertex AI: {e}")
+            print(f"Erreur initialisation Vertex AI: {e}")
             self.llm = None
         
-        print(f"✅ {self.name} initialisé avec succès")
+        print(f"{self.name} initialisé avec succès")
     
     def can_handle(self, query: str, context: Dict[str, Any] = None) -> bool:
         """
         Détermine si cet agent peut traiter la requête
-        Gère les demandes de contact actives (formulaire)
         """
         query_lower = query.lower()
         
-        # Mots-clés indiquant une VOLONTÉ DE CONTACTER (pas juste avoir les coordonnées)
+        # Mots-clés de contact actif
         contact_action_keywords = [
             'contacter', 'joindre', 'écrire', 'parler à', 'parler avec',
             'rencontrer', 'rendez-vous', 'rdv', 'envoyer un message',
@@ -87,12 +86,6 @@ class ContactAgent(BaseAgent):
     def _identify_service(self, query: str) -> str:
         """
         Identifie le service concerné par la demande
-        
-        Args:
-            query: La requête utilisateur
-            
-        Returns:
-            Nom du service identifié ou 'general'
         """
         query_lower = query.lower()
         
@@ -114,13 +107,6 @@ class ContactAgent(BaseAgent):
     def _format_contact_response(self, query: str, service: str) -> str:
         """
         Formate une réponse de contact personnalisée
-        
-        Args:
-            query: La requête utilisateur
-            service: Le service identifié
-            
-        Returns:
-            Réponse formatée
         """
         response_parts = []
         
@@ -128,15 +114,15 @@ class ContactAgent(BaseAgent):
         if service != "general" and service in self.CONTACT_INFO["services"]:
             service_info = self.CONTACT_INFO["services"][service]
             response_parts.append(f"Pour {service_info['description'].lower()}, voici les coordonnées :\n")
-            response_parts.append(f"📧 Email: {service_info['email']}\n")
+            response_parts.append(f"Email: {service_info['email']}\n")
         else:
             response_parts.append("Voici les coordonnées de l'ESILV :\n")
-            response_parts.append(f"📧 Email général: {self.CONTACT_INFO['email_general']}\n")
+            response_parts.append(f"Email général: {self.CONTACT_INFO['email_general']}\n")
         
         # Informations générales
-        response_parts.append(f"📞 Téléphone: {self.CONTACT_INFO['telephone']}\n")
-        response_parts.append(f"📍 Adresse: {self.CONTACT_INFO['adresse']}\n")
-        response_parts.append(f"🕐 Horaires: {self.CONTACT_INFO['horaires']}\n")
+        response_parts.append(f"Téléphone: {self.CONTACT_INFO['telephone']}\n")
+        response_parts.append(f"Adresse: {self.CONTACT_INFO['adresse']}\n")
+        response_parts.append(f"Horaires: {self.CONTACT_INFO['horaires']}\n")
         
         # Autres services disponibles
         if service == "general":
@@ -194,7 +180,7 @@ class ContactAgent(BaseAgent):
             }
         
         except Exception as e:
-            print(f"❌ Erreur lors du traitement de la demande de contact: {e}")
+            print(f"Erreur lors du traitement de la demande de contact: {e}")
             return {
                 "success": False,
                 "error": str(e),
@@ -230,11 +216,11 @@ Réponse:"""
                 response = self.llm.generate_content(prompt)
                 return response.text.strip()
             except Exception as e:
-                print(f"⚠️ Erreur Vertex AI: {e}")
+                print(f"Erreur Vertex AI: {e}")
         
         # Réponse par défaut
         return (
-            f"📝 Parfait ! Je vais vous aider à contacter {service_info['description'].lower()}.\n\n"
+            f"Parfait ! Je vais vous aider à contacter {service_info['description'].lower()}.\n\n"
             f"Pour que je puisse transmettre votre demande au service concerné ({service_info['email']}), "
             f"j'ai besoin des informations suivantes :\n\n"
             f"• Nom et prénom\n"
@@ -270,10 +256,10 @@ Réponse:"""
         
         return {
             "success": True,
-            "response": f"✅ Votre demande a été transmise au service {form_data.get('service', 'concerné')}!\n"
+            "response": f"Votre demande a été transmise au service {form_data.get('service', 'concerné')}!\n"
                       f"Vous recevrez une réponse à l'adresse: {form_data.get('email')}\n\n"
-                      f"📧 Email de contact: {form_data.get('service_email', 'contact@esilv.fr')}\n\n"
-                      f"📄 Le formulaire a été sauvegardé dans: contact_forms.json",
+                      f"Email de contact: {form_data.get('service_email', 'contact@esilv.fr')}\n\n"
+                      f"Le formulaire a été sauvegardé dans: contact_forms.json",
             "form_data": form_data
         }
     
@@ -307,7 +293,7 @@ Réponse:"""
         with open(forms_file, "w", encoding="utf-8") as f:
             json.dump(forms, f, indent=2, ensure_ascii=False)
         
-        print(f"✅ Formulaire sauvegardé dans {forms_file}")
+        print(f"Formulaire sauvegardé dans {forms_file}")
     
     def get_description(self) -> str:
         """Retourne une description de l'agent"""

@@ -38,8 +38,8 @@ class FaissRAGGemini:
         
         # Vérifier que l'index existe
         if not os.path.exists(INDEX_PATH):
-            print(f"⚠️ Index FAISS non trouvé: {INDEX_PATH}")
-            print("📌 Crée d'abord des documents via l'Administration > Document Management")
+            print(f"Index FAISS non trouvé: {INDEX_PATH}")
+            print("Crée d'abord des documents via l'Administration > Document Management")
             self.index = None
             self.urls = []
             self.texts = []
@@ -48,7 +48,7 @@ class FaissRAGGemini:
             return
         
         if not os.path.exists(MAPPING_PATH):
-            print(f"⚠️ Mapping FAISS non trouvé: {MAPPING_PATH}")
+            print(f"Mapping FAISS non trouvé: {MAPPING_PATH}")
             self.index = None
             self.urls = []
             self.texts = []
