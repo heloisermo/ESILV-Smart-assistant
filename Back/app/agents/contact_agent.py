@@ -267,36 +267,42 @@ Réponse:"""
         }
     
     def _save_form_to_file(self, form_data: Dict[str, Any]):
-        """Sauvegarde le formulaire dans un fichier JSON"""
-        import json
-        from datetime import datetime
-        
-        # Ajouter un timestamp
-        form_with_timestamp = {
-            "timestamp": datetime.now().isoformat(),
-            "status": "pending",
-            **form_data
-        }
-        
-        # Charger les formulaires existants
-        forms_file = "contact_forms.json"
+        """Sauvegarde le formulaire via le leads_manager"""
         try:
-            if os.path.exists(forms_file):
-                with open(forms_file, "r", encoding="utf-8") as f:
-                    forms = json.load(f)
-            else:
-                forms = []
-        except:
-            forms = []
-        
-        # Ajouter le nouveau formulaire
-        forms.append(form_with_timestamp)
-        
-        # Sauvegarder
-        with open(forms_file, "w", encoding="utf-8") as f:
-            json.dump(forms, f, indent=2, ensure_ascii=False)
-        
-        print(f"Formulaire sauvegardé dans {forms_file}")
+            # Importer le leads_manager
+            import sys
+            from pathlib import Path
+            
+            # Ajouter le chemin vers Back/app
+            back_app_path = Path(__file__).parent.parent
+            if str(back_app_path) not in sys.path:
+                sys.path.insert(0, str(back_app_path))
+            
+            from leads_manager import add_lead
+            
+            # Créer le lead avec les bons paramètres
+            name = f"{form_data.get('prenom', '')} {form_data.get('nom', '')}".strip()
+            email = form_data.get("email", "")
+            
+            if not name or not email:
+                print("⚠️ Formulaire incomplet - nom ou email manquant")
+                return
+            
+            # Sauvegarder via le leads_manager
+            lead = add_lead(
+                name=name,
+                email=email,
+                education=None,
+                program_of_interest=form_data.get("objet"),
+                message=form_data.get("message", "")
+            )
+            
+            print(f"✅ Formulaire de contact sauvegardé: ID {lead.get('id')}")
+                
+        except Exception as e:
+            print(f"❌ Erreur lors de la sauvegarde du formulaire: {e}")
+            import traceback
+            traceback.print_exc()
     
     def get_description(self) -> str:
         """Retourne une description de l'agent"""

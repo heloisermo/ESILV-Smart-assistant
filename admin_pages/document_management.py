@@ -157,18 +157,27 @@ def render_document_management():
                 # Step 2: Index the uploaded documents
                 if successful > 0 and uploaded_docs_info:
                     st.divider()
-                    status_text.text("📊 Indexing documents...")
+                    st.subheader("📊 Indexation des documents")
+                    
+                    # Create containers for progress display
+                    progress_bar = st.progress(0.0)
+                    progress_container = st.container()
                     
                     if indexing_method == "incremental" and index_exists:
                         # Incremental indexing
                         indexed_successfully = 0
                         index_failed = 0
                         
-                        for doc_info in uploaded_docs_info:
-                            status_text.text(f"Indexing: {doc_info['filename']}...")
+                        for idx, doc_info in enumerate(uploaded_docs_info):
+                            # Update progress for document being processed
+                            doc_progress = idx / len(uploaded_docs_info)
                             
-                            def progress_callback(message):
-                                status_text.text(f"{doc_info['filename']}: {message}")
+                            def progress_callback(progress, step, message):
+                                # Calculate overall progress
+                                overall_progress = doc_progress + (progress / len(uploaded_docs_info))
+                                progress_bar.progress(overall_progress)
+                                with progress_container:
+                                    st.text(f"📄 {doc_info['filename']} - {step}: {message}")
                             
                             success, message, index_stats = add_document_to_index(
                                 doc_info["file_path"],
@@ -183,44 +192,49 @@ def render_document_management():
                                     index_stats.get("chunks_added", 0)
                                 )
                                 indexed_successfully += 1
-                                st.success(f"✅ {doc_info['filename']}: {message}")
                             else:
-                                st.error(f"❌ {doc_info['filename']}: {message}")
                                 index_failed += 1
+                                with progress_container:
+                                    st.error(f"❌ {doc_info['filename']}: {message}")
+                        
+                        # Complete progress
+                        progress_bar.progress(1.0)
                         
                         if indexed_successfully > 0:
-                            st.success(f"🎉 {indexed_successfully} document(s) indexed successfully!")
+                            st.success(f"🎉 {indexed_successfully} document(s) indexé(s) avec succès !")
                             
                             # Recharger l'index RAG automatiquement
-                            status_text.text("🔄 Reloading RAG index...")
-                            try:
-                                # Import ici pour éviter les dépendances circulaires
-                                import streamlit as st_reload
-                                if 'rag_instance' in st_reload.session_state:
-                                    if hasattr(st_reload.session_state.rag_instance, 'reload_index'):
-                                        if st_reload.session_state.rag_instance.reload_index():
-                                            st.success("✅ RAG index rechargé ! Les nouveaux documents sont immédiatement disponibles.")
+                            with st.spinner("🔄 Rechargement de l'index RAG..."):
+                                try:
+                                    # Import ici pour éviter les dépendances circulaires
+                                    import streamlit as st_reload
+                                    if 'rag_instance' in st_reload.session_state:
+                                        if hasattr(st_reload.session_state.rag_instance, 'reload_index'):
+                                            if st_reload.session_state.rag_instance.reload_index():
+                                                st.success("✅ RAG index rechargé ! Les nouveaux documents sont immédiatement disponibles.")
+                                            else:
+                                                st.warning("⚠️ Impossible de recharger l'index RAG. Veuillez redémarrer l'application.")
                                         else:
-                                            st.warning("⚠️ Impossible de recharger l'index RAG. Veuillez redémarrer l'application.")
+                                            st.info("ℹ️ Redémarrez l'application pour utiliser les nouveaux documents dans le RAG.")
                                     else:
-                                        st.info("ℹ️ Redémarrez l'application pour utiliser les nouveaux documents dans le RAG.")
-                                else:
-                                    st.info("ℹ️ Les documents sont indexés. Redémarrez l'application pour les utiliser dans le RAG.")
-                            except Exception as e:
-                                st.info("ℹ️ Documents indexés. Redémarrez l'application pour les utiliser dans le RAG.")
+                                        st.info("ℹ️ Les documents sont indexés. Redémarrez l'application pour les utiliser dans le RAG.")
+                                except Exception as e:
+                                    st.info("ℹ️ Documents indexés. Redémarrez l'application pour les utiliser dans le RAG.")
                             
                             st.rerun()
                     
                     else:
                         # Rebuild entire index
-                        status_text.text("🔄 Rebuilding entire index...")
                         
-                        def progress_callback(message):
-                            status_text.text(message)
+                        def progress_callback(progress, step, message):
+                            progress_bar.progress(progress)
+                            with progress_container:
+                                st.text(f"🔄 {step}: {message}")
                         
                         success, message, index_stats = rebuild_index(progress_callback)
                         
                         if success:
+                            progress_bar.progress(1.0)
                             st.success(f"✅ {message}")
                             
                             # Mark all uploaded documents as indexed
@@ -230,11 +244,12 @@ def render_document_management():
                                     0  # Will be updated properly in rebuild
                                 )
                             
-                            st.json({
-                                "Documents": index_stats.get("document_count"),
-                                "Chunks Créés": index_stats.get("chunk_count"),
-                                "Dimension des Embeddings": index_stats.get("embedding_dim"),
-                            })
+                            with st.expander("📊 Statistiques de l'index", expanded=False):
+                                st.json({
+                                    "Documents": index_stats.get("document_count"),
+                                    "Chunks Créés": index_stats.get("chunk_count"),
+                                    "Dimension des Embeddings": index_stats.get("embedding_dim"),
+                                })
                             
                             st.info("✅ Les documents sont maintenant prêts pour les requêtes RAG !")
                             st.rerun()
@@ -386,35 +401,41 @@ def render_document_management():
             st.info("📄 Aucun document disponible à indexer. Veuillez d'abord télécharger des documents.")
         else:
             if st.button("🔄 Reconstruire l'Index", type="primary", key="rebuild_btn"):
-                with st.spinner("🔄 Reconstruction de l'index en cours... Cela peut prendre quelques minutes."):
-                    progress_placeholder = st.empty()
-                    status_placeholder = st.empty()
+                st.subheader("🔄 Reconstruction en cours")
+                
+                # Create progress bar and container
+                progress_bar = st.progress(0.0)
+                progress_container = st.container()
+                
+                def progress_callback(progress, step, message):
+                    progress_bar.progress(progress)
+                    with progress_container:
+                        st.text(f"🔄 {step}: {message}")
+                
+                success, message, index_stats = rebuild_index(progress_callback)
+                
+                if success:
+                    progress_bar.progress(1.0)
+                    st.success(f"✅ {message}")
                     
-                    def progress_callback(message):
-                        status_placeholder.info(f"📋 {message}")
+                    # Update document metadata to mark as indexed
+                    for doc in non_indexed:
+                        chunk_count = index_stats.get("chunk_count", 0)
+                        mark_document_as_indexed(doc["id"], chunk_count)
                     
-                    success, message, index_stats = rebuild_index(progress_callback)
-                    
-                    if success:
-                        st.success(f"✅ {message}")
-                        
-                        # Update document metadata to mark as indexed
-                        for doc in non_indexed:
-                            chunk_count = index_stats.get("chunk_count", 0)
-                            mark_document_as_indexed(doc["id"], chunk_count)
-                        
-                        # Display new stats
+                    # Display new stats
+                    with st.expander("📊 Statistiques de l'index", expanded=True):
                         st.json({
                             "Documents": index_stats.get("document_count"),
                             "Chunks Created": index_stats.get("chunk_count"),
                             "Embedding Dimension": index_stats.get("embedding_dim"),
                             "Indexed At": index_stats.get("indexed_at")
                         })
-                        
-                        st.info("✅ Documents are now ready for RAG queries!")
-                        st.rerun()
-                    else:
-                        st.error(f"❌ {message}")
+                    
+                    st.info("✅ Documents are now ready for RAG queries!")
+                    st.rerun()
+                else:
+                    st.error(f"❌ {message}")
             
             # Show summary
             st.divider()

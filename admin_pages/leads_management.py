@@ -34,14 +34,14 @@ def format_datetime(iso_str: str) -> str:
 
 def render_leads_management():
     """Afficher la section de gestion des leads"""
-    st.header("📋 Gestion des Leads")
+    st.header("📋 Gestion des Contacts")
     
     # Créer des onglets pour différentes sections
-    leads_tabs = st.tabs(["📄 Tous les Leads", "🔍 Rechercher", "➕ Ajouter Manuellement", "📥 Exporter"])
+    leads_tabs = st.tabs(["📄 Tous les Contacts", "🔍 Rechercher"])
     
     # ===== TAB 1: All Leads =====
     with leads_tabs[0]:
-        st.subheader("📊 Leads Collectés")
+        st.subheader("📊 Contacts Collectés")
         
         # Get all leads with spinner
         with st.spinner("🔄 Chargement des leads..."):
@@ -50,7 +50,7 @@ def render_leads_management():
         if not leads:
             st.info("📄 Aucun lead n'a encore été collecté.")
         else:
-            st.write(f"**Total des Leads : {len(leads)}**")
+            st.write(f"**Total des formulaires de contacts : {len(leads)}**")
             st.divider()
             
             # Create DataFrame for display
@@ -201,128 +201,3 @@ def render_leads_management():
                 )
         else:
             st.info("Enter a search term to find leads")
-    
-    # ===== TAB 3: Add Lead Manually =====
-    with leads_tabs[2]:
-        st.subheader("Add Lead Manually")
-        st.write("Create a new lead entry in the system.")
-        
-        with st.form("add_lead_form"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                name = st.text_input(
-                    "Name *",
-                    placeholder="John Doe",
-                    help="Lead's full name (required)"
-                )
-                email = st.text_input(
-                    "Email *",
-                    placeholder="john@example.com",
-                    help="Lead's email address (required)"
-                )
-            
-            with col2:
-                education = st.text_input(
-                    "Education/Background",
-                    placeholder="Computer Science student",
-                    help="Current education or background (optional)"
-                )
-                program = st.text_input(
-                    "Program of Interest",
-                    placeholder="Engineering Program",
-                    help="Interested program or major (optional)"
-                )
-            
-            message = st.text_area(
-                "Additional Message",
-                placeholder="Any additional notes or information...",
-                help="Optional additional information",
-                height=100
-            )
-            
-            st.write("* Required fields")
-            
-            submitted = st.form_submit_button("➕ Add Lead", type="primary")
-            
-            if submitted:
-                if not name or not email:
-                    st.error("Name and Email are required fields")
-                else:
-                    try:
-                        new_lead = add_lead(
-                            name=name,
-                            email=email,
-                            education=education if education else None,
-                            program_of_interest=program if program else None,
-                            message=message if message else None
-                        )
-                        
-                        st.success(f"✅ Lead added successfully (ID: {new_lead['id']})")
-                        st.rerun()
-                    
-                    except Exception as e:
-                        st.error(f"Error adding lead: {str(e)}")
-    
-    # ===== TAB 4: Export Data =====
-    with leads_tabs[3]:
-        st.subheader("Export Data")
-        
-        leads = get_leads()
-        
-        if not leads:
-            st.info("No leads to export.")
-        else:
-            st.write(f"**Ready to export {len(leads)} leads**")
-            st.divider()
-            
-            # Export options
-            st.subheader("Export Formats")
-            
-            col1, col2 = st.columns(2)
-            
-            # CSV Export
-            with col1:
-                st.write("**Export as CSV**")
-                st.write("Download leads as a CSV file for import into CRM, email tools, or spreadsheet applications.")
-                
-                csv_data = export_leads_to_csv()
-                
-                if csv_data:
-                    st.download_button(
-                        label="📥 Download CSV",
-                        data=csv_data,
-                        file_name=f"esilv_leads_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                        mime="text/csv",
-                        type="primary"
-                    )
-            
-            # JSON Export
-            with col2:
-                st.write("**Export as JSON**")
-                st.write("Download leads as JSON format for programmatic access or data backup.")
-                
-                import json
-                json_data = json.dumps(leads, ensure_ascii=False, indent=2)
-                
-                st.download_button(
-                    label="📥 Download JSON",
-                    data=json_data,
-                    file_name=f"esilv_leads_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                    mime="application/json"
-                )
-            
-            st.divider()
-            
-            # Preview
-            st.subheader("Data Preview")
-            
-            preview_tabs = st.tabs(["CSV Preview", "JSON Preview"])
-            
-            with preview_tabs[0]:
-                st.text(csv_data[:1000] + "..." if len(csv_data) > 1000 else csv_data)
-            
-            with preview_tabs[1]:
-                st.json(leads[:3])
-                if len(leads) > 3:
-                    st.info(f"... and {len(leads) - 3} more leads")

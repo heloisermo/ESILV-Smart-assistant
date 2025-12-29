@@ -392,7 +392,9 @@ def rebuild_index(
     Rebuild the FAISS index from scraped documents and uploaded documents
     
     Args:
-        progress_callback: Optional callback function for progress updates
+        progress_callback: Optional callback function for progress updates.
+                         Called with (progress: float, step: str, message: str)
+                         progress is between 0.0 and 1.0
         
     Returns:
         Tuple of (success: bool, message: str, stats: dict)
@@ -401,7 +403,7 @@ def rebuild_index(
         ensure_data_dir()
         
         if progress_callback:
-            progress_callback("Loading documents...")
+            progress_callback(0.0, "Chargement", "Chargement des documents...")
         
         # Load all documents (scraped + uploaded)
         documents = load_all_documents()
@@ -410,12 +412,12 @@ def rebuild_index(
         
         # Archive old index
         if progress_callback:
-            progress_callback("Archiving old index...")
+            progress_callback(0.15, "Archivage", "Archivage de l'ancien index...")
         archive_old_index()
         
         # Chunk documents
         if progress_callback:
-            progress_callback(f"Chunking {len(documents)} documents...")
+            progress_callback(0.25, "Découpage", f"Découpage de {len(documents)} documents...")
         
         urls, chunks, doc_indices = chunk_documents(documents)
         
@@ -424,19 +426,19 @@ def rebuild_index(
         
         # Generate embeddings
         if progress_callback:
-            progress_callback(f"Generating embeddings for {len(chunks)} chunks...")
+            progress_callback(0.45, "Embeddings", f"Génération des embeddings pour {len(chunks)} chunks...")
         
         embeddings = make_embeddings(chunks)
         
         # Build index
         if progress_callback:
-            progress_callback("Building FAISS index...")
+            progress_callback(0.75, "Construction", "Construction de l'index FAISS...")
         
         index = build_faiss_index(embeddings)
         
         # Save index and mapping
         if progress_callback:
-            progress_callback("Saving index files...")
+            progress_callback(0.90, "Sauvegarde", "Sauvegarde des fichiers d'index...")
         
         faiss.write_index(index, INDEX_PATH)
         
@@ -457,6 +459,9 @@ def rebuild_index(
             "indexed_at": datetime.now().isoformat()
         }
         
+        if progress_callback:
+            progress_callback(1.0, "Terminé", "Index reconstruit avec succès !")
+        
         return True, f"Index rebuilt successfully with {len(chunks)} chunks from {len(documents)} documents", stats
     
     except Exception as e:
@@ -474,7 +479,9 @@ def add_document_to_index(
     Args:
         document_path: Path to the document file
         document_name: Name/identifier for the document
-        progress_callback: Optional callback function for progress updates
+        progress_callback: Optional callback function for progress updates.
+                         Called with (progress: float, step: str, message: str)
+                         progress is between 0.0 and 1.0
         
     Returns:
         Tuple of (success: bool, message: str, stats: dict)
@@ -487,7 +494,7 @@ def add_document_to_index(
             return False, "Index does not exist. Please rebuild the index first.", {}
         
         if progress_callback:
-            progress_callback("Loading existing index...")
+            progress_callback(0.0, "Chargement", "Chargement de l'index existant...")
         
         # Load existing index and mapping
         index = faiss.read_index(INDEX_PATH)
@@ -503,7 +510,7 @@ def add_document_to_index(
         new_doc_idx = max_doc_idx + 1
         
         if progress_callback:
-            progress_callback("Extracting text from document...")
+            progress_callback(0.15, "Extraction", "Extraction du texte du document...")
         
         # Extract text from the new document
         from document_manager import extract_text_from_file
@@ -513,7 +520,7 @@ def add_document_to_index(
             return False, "Document is empty or too short to index", {}
         
         if progress_callback:
-            progress_callback("Chunking document...")
+            progress_callback(0.30, "Découpage", "Découpage du document...")
         
         # Chunk the new document
         new_chunks = smart_chunk_text(text)
@@ -522,13 +529,13 @@ def add_document_to_index(
             return False, "No chunks created from document", {}
         
         if progress_callback:
-            progress_callback(f"Generating embeddings for {len(new_chunks)} chunks...")
+            progress_callback(0.50, "Embeddings", f"Génération des embeddings pour {len(new_chunks)} chunks...")
         
         # Generate embeddings for new chunks
         new_embeddings = make_embeddings(new_chunks)
         
         if progress_callback:
-            progress_callback("Adding to index...")
+            progress_callback(0.75, "Ajout", "Ajout à l'index...")
         
         # Add new embeddings to the existing index
         index.add(new_embeddings)
@@ -540,7 +547,7 @@ def add_document_to_index(
             doc_indices.append(new_doc_idx)
         
         if progress_callback:
-            progress_callback("Saving updated index...")
+            progress_callback(0.90, "Sauvegarde", "Sauvegarde de l'index mis à jour...")
         
         # Save updated index
         faiss.write_index(index, INDEX_PATH)
@@ -554,6 +561,9 @@ def add_document_to_index(
         
         with open(MAPPING_PATH, "w", encoding="utf-8") as f:
             json.dump(updated_mapping, f, ensure_ascii=False, indent=2)
+        
+        if progress_callback:
+            progress_callback(1.0, "Terminé", "Document ajouté avec succès !")
         
         # Prepare stats
         stats = {

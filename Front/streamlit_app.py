@@ -217,7 +217,7 @@ st.markdown("""
     .message-content p {
         margin: 0.75rem 0;
         line-height: 1.8;
-        font-size: 1.05rem;
+        font-size: 1.15rem;
     }
     
     .message-content p:first-child {
@@ -230,7 +230,7 @@ st.markdown("""
     
     .assistant-name {
         font-weight: 600;
-        font-size: 0.95rem;
+        font-size: 1.05rem;
         color: #667eea;
         display: block;
         margin-bottom: 0.5rem;
@@ -264,12 +264,12 @@ st.markdown("""
     .form-info strong {
         display: block;
         margin-bottom: 1rem;
-        font-size: 1.1rem;
+        font-size: 1.2rem;
         color: #667eea;
     }
     
     .form-info-item {
-        font-size: 1rem;
+        font-size: 1.1rem;
         margin: 0.75rem 0;
         color: #2c3e50;
     }
@@ -381,13 +381,13 @@ st.markdown("""
     }
     
     [data-testid="stSidebar"] p, [data-testid="stSidebar"] li {
-        font-size: 1rem !important;
+        font-size: 1.1rem !important;
         color: #2c3e50 !important;
         line-height: 1.6 !important;
     }
     
     [data-testid="stSidebar"] .caption {
-        font-size: 1rem !important;
+        font-size: 1.1rem !important;
         color: #7f8c8d !important;
         margin: 0.5rem 0 !important;
     }
@@ -707,7 +707,7 @@ def render_admin_panel():
     st.markdown("""
     <div style='text-align: center; padding: 2rem 0;'>
         <h1>🔧 Administration ESILV</h1>
-        <p style='color: #666;'>Gestion des documents et des leads</p>
+        <p style='color: #666;'>Gestion des documents et des contacts</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -726,7 +726,7 @@ def render_admin_panel():
     st.divider()
     
     # Tabs pour les différentes sections admin
-    admin_tabs = st.tabs(["📄 Gestion des Documents", "📋 Gestion des Leads"])
+    admin_tabs = st.tabs(["📄 Gestion des Documents", "📋 Gestion des contacts"])
     
     with admin_tabs[0]:
         render_document_management()
@@ -776,41 +776,6 @@ def main():
     # Sidebar avec options
     with st.sidebar:
         st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
-        
-        st.markdown('<div class="sidebar-title">Outils</div>', unsafe_allow_html=True)
-        
-        col_reset1, col_reset2 = st.columns(2)
-        with col_reset1:
-            if st.button("Réinitialiser", use_container_width=True):
-                st.session_state.messages = []
-                st.session_state.pending_form = None
-                st.rerun()
-        
-        with col_reset2:
-            if st.button("Réinit. agents", use_container_width=True):
-                st.session_state.initialized = False
-                st.rerun()
-        
-        st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="sidebar-title">État</div>', unsafe_allow_html=True)
-        if st.session_state.agent_status:
-            st.markdown(f'<div class="status-badge">{st.session_state.agent_status}</div>', unsafe_allow_html=True)
-        else:
-            st.info("Initialisation en cours...")
-        
-        if st.session_state.pending_form:
-            st.warning("Formulaire en cours de remplissage")
-            with st.expander("Voir les champs"):
-                for key, value in st.session_state.pending_form["fields"].items():
-                    status = "OK" if value else "--"
-                    st.text(f"{status} {key.capitalize()}: {value or 'Non fourni'}")
-            
-            if st.button("Annuler le formulaire", use_container_width=True, type="secondary"):
-                st.session_state.pending_form = None
-                st.rerun()
-        
-        st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
         
         st.markdown('<div class="sidebar-title">Exemples de questions</div>', unsafe_allow_html=True)
         examples = [
