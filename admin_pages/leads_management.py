@@ -34,21 +34,21 @@ def format_datetime(iso_str: str) -> str:
 
 def render_leads_management():
     """Afficher la section de gestion des leads"""
-    st.header("📋 Gestion des Contacts")
+    st.header("Gestion des Contacts")
     
     # Créer des onglets pour différentes sections
-    leads_tabs = st.tabs(["📄 Tous les Contacts", "🔍 Rechercher"])
+    leads_tabs = st.tabs(["Tous les Contacts", "Rechercher"])
     
     # ===== TAB 1: All Leads =====
     with leads_tabs[0]:
-        st.subheader("📊 Contacts Collectés")
+        st.subheader("Contacts Collectés")
         
         # Get all leads with spinner
-        with st.spinner("🔄 Chargement des leads..."):
+        with st.spinner("Chargement des leads..."):
             leads = get_leads()
         
         if not leads:
-            st.info("📄 Aucun lead n'a encore été collecté.")
+            st.info("Aucun lead n'a encore été collecté.")
         else:
             st.write(f"**Total des formulaires de contacts : {len(leads)}**")
             st.divider()
@@ -89,7 +89,7 @@ def render_leads_management():
             st.divider()
             
             # Actions on leads
-            st.subheader("⚙️ Gestion des Leads")
+            st.subheader("Gestion des Contacts")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -129,14 +129,14 @@ def render_leads_management():
                 col_action1, col_action2 = st.columns(2)
                 
                 with col_action1:
-                    if st.button("🗑️ Supprimer", type="secondary", key="delete_lead"):
-                        with st.spinner("🔄 Suppression en cours..."):
+                    if st.button("Supprimer", type="secondary", key="delete_lead"):
+                        with st.spinner("Suppression en cours..."):
                             lead_id = int(selected_lead_id.split(":")[0].replace("ID ", ""))
                             if delete_lead(lead_id):
-                                st.success("✅ Lead supprimé avec succès")
+                                st.success("Lead supprimé avec succès")
                                 st.rerun()
                             else:
-                                st.error("❌ Échec de la suppression")
+                                st.error("Échec de la suppression")
                 
                 with col_action2:
                     st.metric("Total Leads", len(leads))
@@ -144,7 +144,7 @@ def render_leads_management():
             st.divider()
             
             # Statistics
-            st.subheader("📊 Statistiques")
+            st.subheader("Statistiques")
             col_stat1, col_stat2, col_stat3 = st.columns(3)
             
             with col_stat1:
@@ -160,7 +160,7 @@ def render_leads_management():
     
     # ===== TAB 2: Search Leads =====
     with leads_tabs[1]:
-        st.subheader("🔍 Rechercher des Leads")
+        st.subheader("Rechercher des Contacts")
         
         search_query = st.text_input(
             "Rechercher par nom ou email",
@@ -169,7 +169,7 @@ def render_leads_management():
         )
         
         if search_query:
-            with st.spinner("🔄 Recherche en cours..."):
+            with st.spinner("Recherche en cours..."):
                 results = search_leads(search_query)
             
             if not results:

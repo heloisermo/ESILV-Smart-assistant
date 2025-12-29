@@ -47,14 +47,14 @@ def format_datetime(iso_str: str) -> str:
 
 def render_document_management():
     """Afficher la section de gestion des documents"""
-    st.header("📄 Gestion des Documents")
+    st.header("Gestion des Documents")
     
     # Créer des onglets pour différentes sections
-    doc_tabs = st.tabs(["📤 Télécharger", "📁 Documents Indexés", "📊 Statut de l'Index"])
+    doc_tabs = st.tabs(["Télécharger", "Documents Indexés", "Statut de l'Index"])
     
     # ===== TAB 1: Upload Documents =====
     with doc_tabs[0]:
-        st.subheader("⬆️ Télécharger de Nouveaux Documents")
+        st.subheader("Télécharger de Nouveaux Documents")
         st.write("""
         Téléchargez des documents (PDF, HTML ou TXT) pour les indexer et les utiliser dans le système RAG.
         Vous pouvez choisir de les ajouter de manière incrémentale (plus rapide) ou de reconstruire tout l'index.
@@ -71,24 +71,24 @@ def render_document_management():
             st.write(f"**{len(uploaded_files)} fichier(s) prêt(s) à télécharger**")
             
             # Check if index exists to offer incremental indexing
-            with st.spinner("🔄 Vérification de l'index..."):
+            with st.spinner("Vérification de l'index..."):
                 stats = get_index_stats()
             index_exists = stats["index_exists"] and stats["mapping_exists"]
             
             # Choose indexing method
             if index_exists:
-                st.info("💡 **Astuce**: L'indexation incrémentale ajoute seulement les nouveaux documents (plus rapide)")
+                st.info("**Astuce**: L'indexation incrémentale ajoute seulement les nouveaux documents (plus rapide)")
                 indexing_method = st.radio(
                     "Méthode d'indexation:",
                     ["incremental", "rebuild"],
-                    format_func=lambda x: "🚀 Incrémentale (recommandé)" if x == "incremental" else "🔄 Reconstruire tout l'index",
+                    format_func=lambda x: "Incrémentale (recommandé)" if x == "incremental" else "Reconstruire tout l'index",
                     horizontal=True
                 )
             else:
-                st.warning("⚠️ Aucun index existant. Les documents seront ajoutés et un nouvel index sera créé.")
+                st.warning("Aucun index existant. Les documents seront ajoutés et un nouvel index sera créé.")
                 indexing_method = "rebuild"
             
-            if st.button("📤 Télécharger & Indexer", type="primary"):
+            if st.button("Télécharger & Indexer", type="primary"):
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
@@ -98,7 +98,7 @@ def render_document_management():
                 
                 # Step 1: Upload all files first
                 for idx, uploaded_file in enumerate(uploaded_files):
-                    status_text.text(f"⬆️ Téléchargement {idx + 1}/{len(uploaded_files)}: {uploaded_file.name}")
+                    status_text.text(f"Téléchargement {idx + 1}/{len(uploaded_files)}: {uploaded_file.name}")
                     
                     try:
                         # Read file content
@@ -111,7 +111,7 @@ def render_document_management():
                         )
                         
                         if not success:
-                            st.error(f"❌ {uploaded_file.name}: {msg}")
+                            st.error(f"{uploaded_file.name}: {msg}")
                             failed += 1
                             continue
                         
@@ -122,7 +122,7 @@ def render_document_management():
                         )
                         
                         if not success:
-                            st.error(f"❌ {uploaded_file.name}: {msg}")
+                            st.error(f"{uploaded_file.name}: {msg}")
                             failed += 1
                             continue
                         
@@ -143,21 +143,21 @@ def render_document_management():
                             "filename": uploaded_file.name,
                             "file_path": file_path
                         })
-                        st.success(f"✅ {uploaded_file.name} uploaded successfully")
+                        st.success(f"{uploaded_file.name} uploaded successfully")
                     
                     except Exception as e:
-                        st.error(f"❌ Error uploading {uploaded_file.name}: {str(e)}")
+                        st.error(f"Error uploading {uploaded_file.name}: {str(e)}")
                         failed += 1
                     
                     # Update progress
                     progress_bar.progress((idx + 1) / len(uploaded_files))
                 
-                st.info(f"✅ Uploaded: {successful} | ❌ Failed: {failed}")
+                st.info(f"Uploaded: {successful} | Failed: {failed}")
                 
                 # Step 2: Index the uploaded documents
                 if successful > 0 and uploaded_docs_info:
                     st.divider()
-                    st.subheader("📊 Indexation des documents")
+                    st.subheader("Indexation des documents")
                     
                     # Create containers for progress display
                     progress_bar = st.progress(0.0)
@@ -177,7 +177,7 @@ def render_document_management():
                                 overall_progress = doc_progress + (progress / len(uploaded_docs_info))
                                 progress_bar.progress(overall_progress)
                                 with progress_container:
-                                    st.text(f"📄 {doc_info['filename']} - {step}: {message}")
+                                    st.text(f"{doc_info['filename']} - {step}: {message}")
                             
                             success, message, index_stats = add_document_to_index(
                                 doc_info["file_path"],
@@ -195,31 +195,31 @@ def render_document_management():
                             else:
                                 index_failed += 1
                                 with progress_container:
-                                    st.error(f"❌ {doc_info['filename']}: {message}")
+                                    st.error(f"{doc_info['filename']}: {message}")
                         
                         # Complete progress
                         progress_bar.progress(1.0)
                         
                         if indexed_successfully > 0:
-                            st.success(f"🎉 {indexed_successfully} document(s) indexé(s) avec succès !")
+                            st.success(f"{indexed_successfully} document(s) indexé(s) avec succès !")
                             
                             # Recharger l'index RAG automatiquement
-                            with st.spinner("🔄 Rechargement de l'index RAG..."):
+                            with st.spinner("Rechargement de l'index RAG..."):
                                 try:
                                     # Import ici pour éviter les dépendances circulaires
                                     import streamlit as st_reload
                                     if 'rag_instance' in st_reload.session_state:
                                         if hasattr(st_reload.session_state.rag_instance, 'reload_index'):
                                             if st_reload.session_state.rag_instance.reload_index():
-                                                st.success("✅ RAG index rechargé ! Les nouveaux documents sont immédiatement disponibles.")
+                                                st.success("RAG index rechargé ! Les nouveaux documents sont immédiatement disponibles.")
                                             else:
-                                                st.warning("⚠️ Impossible de recharger l'index RAG. Veuillez redémarrer l'application.")
+                                                st.warning("Impossible de recharger l'index RAG. Veuillez redémarrer l'application.")
                                         else:
-                                            st.info("ℹ️ Redémarrez l'application pour utiliser les nouveaux documents dans le RAG.")
+                                            st.info("Redémarrez l'application pour utiliser les nouveaux documents dans le RAG.")
                                     else:
-                                        st.info("ℹ️ Les documents sont indexés. Redémarrez l'application pour les utiliser dans le RAG.")
+                                        st.info("Les documents sont indexés. Redémarrez l'application pour les utiliser dans le RAG.")
                                 except Exception as e:
-                                    st.info("ℹ️ Documents indexés. Redémarrez l'application pour les utiliser dans le RAG.")
+                                    st.info("Documents indexés. Redémarrez l'application pour les utiliser dans le RAG.")
                             
                             st.rerun()
                     
@@ -229,13 +229,13 @@ def render_document_management():
                         def progress_callback(progress, step, message):
                             progress_bar.progress(progress)
                             with progress_container:
-                                st.text(f"🔄 {step}: {message}")
+                                st.text(f"{step}: {message}")
                         
                         success, message, index_stats = rebuild_index(progress_callback)
                         
                         if success:
                             progress_bar.progress(1.0)
-                            st.success(f"✅ {message}")
+                            st.success(f"{message}")
                             
                             # Mark all uploaded documents as indexed
                             for doc_info in uploaded_docs_info:
@@ -244,28 +244,28 @@ def render_document_management():
                                     0  # Will be updated properly in rebuild
                                 )
                             
-                            with st.expander("📊 Statistiques de l'index", expanded=False):
+                            with st.expander("Statistiques de l'index", expanded=False):
                                 st.json({
                                     "Documents": index_stats.get("document_count"),
                                     "Chunks Créés": index_stats.get("chunk_count"),
                                     "Dimension des Embeddings": index_stats.get("embedding_dim"),
                                 })
                             
-                            st.info("✅ Les documents sont maintenant prêts pour les requêtes RAG !")
+                            st.info("Les documents sont maintenant prêts pour les requêtes RAG !")
                             st.rerun()
                         else:
-                            st.error(f"❌ {message}")
+                            st.error(f"{message}")
     
     # ===== TAB 2: Indexed Documents =====
     with doc_tabs[1]:
-        st.subheader("📁 Documents Indexés")
+        st.subheader("Documents Indexés")
         
         # Get processed documents with spinner
-        with st.spinner("🔄 Chargement des documents..."):
+        with st.spinner("Chargement des documents..."):
             processed_docs = get_processed_documents()
         
         if not processed_docs:
-            st.info("📄 Aucun document n'a encore été téléchargé.")
+            st.info("Aucun document n'a encore été téléchargé.")
         else:
             # Create DataFrame for display
             df_data = []
@@ -276,7 +276,7 @@ def render_document_management():
                     "Taille": format_bytes(doc.get("file_size", 0)),
                     "Contenu": f"{doc.get('content_length', 0)} chars",
                     "Chunks": doc.get("chunk_count", "—"),
-                    "Indexé": "✅ Oui" if doc.get("indexed") else "❌ Non",
+                    "Indexé": "Oui" if doc.get("indexed") else "Non",
                     "Téléchargé": format_datetime(doc.get("uploaded_at", "")),
                     "ID": doc.get("id", "")
                 })
@@ -291,7 +291,7 @@ def render_document_management():
             )
             
             # Actions on documents
-            st.subheader("⚙️ Gérer les Documents")
+            st.subheader("Gérer les Documents")
             col1, col2 = st.columns(2)
             
             with col1:
@@ -301,14 +301,14 @@ def render_document_management():
                     key="delete_doc"
                 )
                 
-                if st.button("🗑️ Supprimer le Document", type="secondary"):
-                    with st.spinner("🔄 Suppression en cours..."):
+                if st.button("Supprimer le Document", type="secondary"):
+                    with st.spinner("Suppression en cours..."):
                         doc_id = next(doc["id"] for doc in processed_docs if doc["filename"] == doc_to_delete)
                         if delete_document(doc_id):
-                            st.success(f"✅ {doc_to_delete} supprimé avec succès")
+                            st.success(f"{doc_to_delete} supprimé avec succès")
                             st.rerun()
                         else:
-                            st.error("❌ Échec de la suppression du document")
+                            st.error("Échec de la suppression du document")
             
             with col2:
                 st.write("**Statistiques :**")
@@ -328,10 +328,10 @@ def render_document_management():
     
     # ===== TAB 3: Index Status & Rebuild =====
     with doc_tabs[2]:
-        st.subheader("📊 Statut de l'Index")
+        st.subheader("Statut de l'Index")
         
         # Get current index stats with spinner
-        with st.spinner("🔄 Vérification de l'index..."):
+        with st.spinner("Vérification de l'index..."):
             stats = get_index_stats()
         
         if stats["index_exists"] and stats["mapping_exists"]:
@@ -347,41 +347,41 @@ def render_document_management():
                 st.metric("Dim. Embedding", stats.get("embedding_dim", "—"))
             
             with col4:
-                st.metric("Statut", "✅ Prêt")
+                st.metric("Statut", "Prêt")
             
             st.divider()
             
             # Bouton pour recharger l'index RAG manuellement
-            st.subheader("🔄 Recharger l'Index RAG")
+            st.subheader("Recharger l'Index RAG")
             st.write("""
             Si vous avez ajouté des documents mais que le chatbot ne les trouve pas, 
             cliquez ici pour forcer le rechargement de l'index dans le système RAG.
             """)
             
-            if st.button("🔄 Recharger l'Index RAG Maintenant", type="primary", key="reload_rag_btn"):
-                with st.spinner("🔄 Rechargement de l'index RAG..."):
+            if st.button("Recharger l'Index RAG Maintenant", type="primary", key="reload_rag_btn"):
+                with st.spinner("Rechargement de l'index RAG..."):
                     try:
                         import streamlit as st_reload
                         if 'rag_instance' in st_reload.session_state:
                             if hasattr(st_reload.session_state.rag_instance, 'reload_index'):
                                 if st_reload.session_state.rag_instance.reload_index():
-                                    st.success("✅ Index RAG rechargé avec succès ! Les nouveaux documents sont maintenant disponibles.")
+                                    st.success("Index RAG rechargé avec succès ! Les nouveaux documents sont maintenant disponibles.")
                                 else:
-                                    st.error("❌ Échec du rechargement. Redémarrez l'application.")
+                                    st.error("Échec du rechargement. Redémarrez l'application.")
                             else:
-                                st.warning("⚠️ La fonction reload_index n'est pas disponible. Redémarrez l'application.")
+                                st.warning("La fonction reload_index n'est pas disponible. Redémarrez l'application.")
                         else:
-                            st.warning("⚠️ Instance RAG non trouvée. Redémarrez l'application pour utiliser les nouveaux documents.")
+                            st.warning("Instance RAG non trouvée. Redémarrez l'application pour utiliser les nouveaux documents.")
                     except Exception as e:
-                        st.error(f"❌ Erreur : {str(e)}")
-                        st.info("💡 Solution : Redémarrez l'application Streamlit.")
+                        st.error(f"Erreur : {str(e)}")
+                        st.info("Solution : Redémarrez l'application Streamlit.")
             
             st.divider()
         else:
-            st.warning("⚠️ Aucun index n'existe encore. Téléchargez des documents et reconstruisez l'index.")
+            st.warning("Aucun index n'existe encore. Téléchargez des documents et reconstruisez l'index.")
         
         # Rebuild index section
-        st.subheader("🔄 Reconstruire l'Index")
+        st.subheader("Reconstruire l'Index")
         st.write("""
         Cliquez sur le bouton ci-dessous pour reconstruire l'index FAISS avec tous les documents téléchargés.
         Ce processus va :
@@ -398,10 +398,10 @@ def render_document_management():
         non_indexed = [doc for doc in processed_docs if not doc.get("indexed")]
         
         if not processed_docs:
-            st.info("📄 Aucun document disponible à indexer. Veuillez d'abord télécharger des documents.")
+            st.info("Aucun document disponible à indexer. Veuillez d'abord télécharger des documents.")
         else:
-            if st.button("🔄 Reconstruire l'Index", type="primary", key="rebuild_btn"):
-                st.subheader("🔄 Reconstruction en cours")
+            if st.button("Reconstruire l'Index", type="primary", key="rebuild_btn"):
+                st.subheader("Reconstruction en cours")
                 
                 # Create progress bar and container
                 progress_bar = st.progress(0.0)
@@ -410,13 +410,13 @@ def render_document_management():
                 def progress_callback(progress, step, message):
                     progress_bar.progress(progress)
                     with progress_container:
-                        st.text(f"🔄 {step}: {message}")
+                        st.text(f"{step}: {message}")
                 
                 success, message, index_stats = rebuild_index(progress_callback)
                 
                 if success:
                     progress_bar.progress(1.0)
-                    st.success(f"✅ {message}")
+                    st.success(f"{message}")
                     
                     # Update document metadata to mark as indexed
                     for doc in non_indexed:
@@ -424,7 +424,7 @@ def render_document_management():
                         mark_document_as_indexed(doc["id"], chunk_count)
                     
                     # Display new stats
-                    with st.expander("📊 Statistiques de l'index", expanded=True):
+                    with st.expander("Statistiques de l'index", expanded=True):
                         st.json({
                             "Documents": index_stats.get("document_count"),
                             "Chunks Created": index_stats.get("chunk_count"),
@@ -432,10 +432,10 @@ def render_document_management():
                             "Indexed At": index_stats.get("indexed_at")
                         })
                     
-                    st.info("✅ Documents are now ready for RAG queries!")
+                    st.info("Documents are now ready for RAG queries!")
                     st.rerun()
                 else:
-                    st.error(f"❌ {message}")
+                    st.error(f"{message}")
             
             # Show summary
             st.divider()
@@ -446,7 +446,7 @@ def render_document_management():
             
             col1, col2 = st.columns(2)
             with col1:
-                st.success(f"✅ Indexed: {indexed_count}")
+                st.success(f"Indexed: {indexed_count}")
             
             with col2:
-                st.warning(f"⏳ Pending: {non_indexed_count}")
+                st.warning(f"Pending: {non_indexed_count}")

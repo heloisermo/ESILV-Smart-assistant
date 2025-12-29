@@ -32,7 +32,7 @@ def main():
         logger.error("Aucun document scrapé. Vérifiez l'URL dans .env")
         return
     
-    logger.info(f"✓ {len(scraped_docs)} documents scrapés avec succès")
+    logger.info(f"{len(scraped_docs)} documents scrapés avec succès")
     
     # 2. Indexer les documents
     logger.info("\n--- Étape 2: Indexation des documents ---")
@@ -40,9 +40,9 @@ def main():
     vectorstore = indexer.index_from_scraped_data(scraped_docs)
     
     if vectorstore:
-        logger.info("✓ Indexation terminée avec succès")
+        logger.info("Indexation terminée avec succès")
     else:
-        logger.error("✗ Échec de l'indexation")
+        logger.error("Échec de l'indexation")
         return
     
     # 3. Test de recherche

@@ -102,10 +102,10 @@ class FaissRAGGemini:
             self.texts = mapping["texts"]
             self.doc_indices = mapping.get("doc_indices", None)
             
-            print(f"✅ Index rechargé : {len(self.texts)} chunks")
+            print(f"Index rechargé : {len(self.texts)} chunks")
             return True
         except Exception as e:
-            print(f"❌ Erreur lors du rechargement de l'index: {e}")
+            print(f"Erreur lors du rechargement de l'index: {e}")
             return False
 
     def retrieve(self, query, k=5):

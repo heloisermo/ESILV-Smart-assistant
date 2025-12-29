@@ -124,7 +124,7 @@ class RAGAgent(BaseAgent):
             }
         
         except Exception as e:
-            print(f"❌ Erreur lors du traitement RAG: {e}")
+            print(f"Erreur lors du traitement RAG: {e}")
             return {
                 "success": False,
                 "error": str(e),

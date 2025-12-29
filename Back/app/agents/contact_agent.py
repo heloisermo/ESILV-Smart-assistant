@@ -285,7 +285,7 @@ Réponse:"""
             email = form_data.get("email", "")
             
             if not name or not email:
-                print("⚠️ Formulaire incomplet - nom ou email manquant")
+                print("Formulaire incomplet - nom ou email manquant")
                 return
             
             # Sauvegarder via le leads_manager
@@ -297,10 +297,10 @@ Réponse:"""
                 message=form_data.get("message", "")
             )
             
-            print(f"✅ Formulaire de contact sauvegardé: ID {lead.get('id')}")
-                
+            print(f"Formulaire de contact sauvegardé: ID {lead.get('id')}")
+            
         except Exception as e:
-            print(f"❌ Erreur lors de la sauvegarde du formulaire: {e}")
+            print(f"Erreur lors de la sauvegarde du formulaire: {e}")
             import traceback
             traceback.print_exc()
     

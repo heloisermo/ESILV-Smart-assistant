@@ -706,7 +706,7 @@ def render_admin_panel():
     """Affiche le panel d'administration"""
     st.markdown("""
     <div style='text-align: center; padding: 2rem 0;'>
-        <h1>🔧 Administration ESILV</h1>
+        <h1>Administration ESILV</h1>
         <p style='color: #666;'>Gestion des documents et des contacts</p>
     </div>
     """, unsafe_allow_html=True)
@@ -718,7 +718,7 @@ def render_admin_panel():
             st.session_state.admin_mode = False
             st.rerun()
     with col3:
-        if st.button("🔓 Déconnexion", use_container_width=True, type="secondary"):
+        if st.button("Déconnexion", use_container_width=True, type="secondary"):
             logout()
             st.session_state.admin_mode = False
             st.rerun()
@@ -726,7 +726,7 @@ def render_admin_panel():
     st.divider()
     
     # Tabs pour les différentes sections admin
-    admin_tabs = st.tabs(["📄 Gestion des Documents", "📋 Gestion des contacts"])
+    admin_tabs = st.tabs(["Gestion des Documents", "Gestion des contacts"])
     
     with admin_tabs[0]:
         render_document_management()
@@ -759,7 +759,7 @@ def main():
             logo_b64 = base64.b64encode(f.read()).decode()
         logo_html = f'<img src="data:image/png;base64,{logo_b64}" alt="ESILV Logo">'
     else:
-        logo_html = '🎓'
+        logo_html = 'ESILV'
     
     st.markdown(f"""
     <div class="header-container">
@@ -791,7 +791,7 @@ def main():
         
         st.markdown('<div class="sidebar-divider"></div>', unsafe_allow_html=True)
         
-        st.markdown('<div class="sidebar-title">🔐 Admin</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-title">Admin</div>', unsafe_allow_html=True)
         if st.button("Accès à l'interface admin", use_container_width=True):
             st.session_state.admin_mode = True
             st.rerun()

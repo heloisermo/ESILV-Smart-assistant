@@ -20,31 +20,31 @@ def main():
     """Fonction principale pour tester le système multi-agents"""
     
     print("=" * 70)
-    print("🤖 SYSTÈME MULTI-AGENTS ESILV")
+    print("SYSTÈME MULTI-AGENTS ESILV")
     print("=" * 70)
     print()
     
     # Initialiser l'orchestrateur
-    print("📋 Initialisation de l'orchestrateur...")
+    print("Initialisation de l'orchestrateur...")
     orchestrator = OrchestratorAgent()
     
     # Créer et enregistrer les agents
-    print("🔧 Création des agents...")
+    print("Création des agents...")
     
     try:
         rag_agent = RAGAgent()
         orchestrator.register_agent(rag_agent)
     except Exception as e:
-        print(f"⚠️ Impossible d'initialiser le RAG Agent: {e}")
+        print(f"Impossible d'initialiser le RAG Agent: {e}")
     
     contact_agent = ContactAgent()
     orchestrator.register_agent(contact_agent)
     
     print()
-    print(f"✅ Agents enregistrés: {', '.join(orchestrator.list_agents())}")
+    print(f"Agents enregistrés: {', '.join(orchestrator.list_agents())}")
     print()
     print("=" * 70)
-    print("💬 MODE INTERACTIF")
+    print("MODE INTERACTIF")
     print("=" * 70)
     print("Tapez vos questions (ou 'quit' pour quitter):")
     print()
@@ -57,13 +57,13 @@ def main():
     
     while True:
         try:
-            user_input = input("\n🙋 Vous: ").strip()
+            user_input = input("\nVous: ").strip()
             
             if not user_input:
                 continue
             
             if user_input.lower() in ['quit', 'exit', 'q']:
-                print("\n👋 Au revoir!")
+                print("\nAu revoir!")
                 break
             
             print()
@@ -75,12 +75,12 @@ def main():
                 result = orchestrator.route(user_input)
             
             if result.get('success'):
-                print(f"🤖 Assistant ({result.get('agent_used', 'N/A')}): ")
+                print(f"Assistant ({result.get('agent_used', 'N/A')}): ")
                 print(f"{result.get('response', 'Pas de réponse')}")
                 
                 # Afficher les infos supplémentaires si formulaire de contact
                 if result.get('requires_form'):
-                    print("\n📋 Formulaire de contact créé:")
+                    print("\nFormulaire de contact créé:")
                     print(f"   Service: {result.get('service')}")
                     print(f"   Email: {result['form']['service_email']}")
                     # Sauvegarder l'état du formulaire
@@ -91,13 +91,13 @@ def main():
                     conversation_state["pending_form"] = None
                     conversation_state["agent"] = None
             else:
-                print(f"❌ Erreur: {result.get('error', 'Erreur inconnue')}")
+                print(f"Erreur: {result.get('error', 'Erreur inconnue')}")
         
         except KeyboardInterrupt:
-            print("\n\n👋 Au revoir!")
+            print("\n\nAu revoir!")
             break
         except Exception as e:
-            print(f"\n❌ Erreur: {e}")
+            print(f"\nErreur: {e}")
 
 
 def handle_form_input(user_input: str, state: dict, contact_agent) -> dict:
@@ -129,7 +129,7 @@ def handle_form_input(user_input: str, state: dict, contact_agent) -> dict:
         return {
             "success": True,
             "agent_used": "Contact Agent",
-            "response": missing_request or f"📝 Il me manque encore : {', '.join(missing)}. Pouvez-vous me les fournir ?"
+            "response": missing_request or f"Il me manque encore : {', '.join(missing)}. Pouvez-vous me les fournir ?"
         }
     
     # Soumettre le formulaire
