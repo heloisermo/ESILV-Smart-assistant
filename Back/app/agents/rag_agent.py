@@ -131,6 +131,62 @@ class RAGAgent(BaseAgent):
                 "response": "Désolé, une erreur s'est produite lors de la recherche d'informations."
             }
     
+    def process_stream(self, query: str, context: Dict[str, Any] = None):
+        """
+        Traite la requête en streaming en utilisant le système RAG
+        
+        Args:
+            query: La requête utilisateur
+            context: Contexte additionnel (optionnel)
+            
+        Yields:
+            Chunks de la réponse de l'agent
+        """
+        if not self.rag_system:
+            yield {
+                "success": False,
+                "error": "Le système RAG n'est pas disponible",
+                "response": "Désolé, le système de réponse n'est pas disponible actuellement."
+            }
+            return
+        
+        try:
+            # Récupérer le nombre de chunks à rechercher depuis le contexte
+            k = context.get('k', 5) if context else 5
+            
+            # Utiliser la méthode answer_stream() du système RAG
+            full_response = ""
+            chunks = []
+            
+            for chunk in self.rag_system.answer_stream(query, k=k):
+                # Vérifier si c'est les docs finaux
+                if isinstance(chunk, tuple) and chunk[0] == "__DOCS__":
+                    chunks = chunk[1]
+                else:
+                    full_response += chunk
+                    yield {
+                        "success": True,
+                        "chunk": chunk,
+                        "is_final": False
+                    }
+            
+            # Envoyer le résultat final avec les chunks
+            yield {
+                "success": True,
+                "response": full_response,
+                "chunks": chunks,
+                "num_chunks": len(chunks),
+                "is_final": True
+            }
+        
+        except Exception as e:
+            print(f"Erreur lors du traitement RAG en streaming: {e}")
+            yield {
+                "success": False,
+                "error": str(e),
+                "response": "Désolé, une erreur s'est produite lors de la recherche d'informations."
+            }
+    
     def get_description(self) -> str:
         """Retourne une description de l'agent"""
         return f"{self.name}: Répond aux questions sur l'ESILV en utilisant le système RAG"

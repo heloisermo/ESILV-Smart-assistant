@@ -226,6 +226,29 @@ class FaissRAGGemini:
             import traceback
             traceback.print_exc()
             return None
+    
+    def _generate_stream(self, system_prompt: str, user_prompt: str):
+        """Génère une réponse en streaming avec Google Gemini"""
+        try:
+            # Gemini n'a pas de system prompt séparé, on le combine avec le user prompt
+            full_prompt = f"{system_prompt}\n\n{user_prompt}"
+            
+            response = self.llm.generate_content(
+                full_prompt,
+                stream=True
+            )
+            
+            # Yield chaque chunk de la réponse
+            for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+            
+        except Exception as e:
+            print(f"Erreur Gemini streaming: {e}")
+            print(f"Type d'erreur: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            yield None
 
     def answer(self, question: str, k: int = 5, fallback_mode: bool = True, enable_web_search: bool = True):
         """Répond à une question en utilisant le RAG et le scraping en temps réel si nécessaire"""
@@ -269,6 +292,52 @@ class FaissRAGGemini:
             ans = self._fallback_answer(docs, question)
         
         return ans, docs
+    
+    def answer_stream(self, question: str, k: int = 5, fallback_mode: bool = True, enable_web_search: bool = True):
+        """Répond à une question en streaming en utilisant le RAG et le scraping en temps réel si nécessaire"""
+        docs = self.retrieve(question, k=k)
+        
+        # Vérifier si les résultats sont pertinents (score > 0.3)
+        has_relevant_docs = any(d['score'] > 0.3 for d in docs)
+        
+        # Les chunks sont déjà de taille raisonnable, pas besoin de tronquer autant
+        # On combine les k meilleurs chunks pour le contexte
+        context_parts = []
+        for i, d in enumerate(docs, 1):
+            context_parts.append(f"[Extrait {i}]\n{d['text']}")
+        
+        context = "\n\n---\n\n".join(context_parts)
+        
+        # Si les docs ne sont pas pertinents et que le web search est activé, chercher sur le site
+        additional_context = ""
+        if not has_relevant_docs and enable_web_search:
+            print("\nLes resultats du RAG ne sont pas assez pertinents. Recherche sur le site ESILV...")
+            url = self._search_on_esilv_site(question)
+            if url:
+                print(f"Scraping de {url}...")
+                scraped_content = self._scrape_page(url)
+                if scraped_content:
+                    additional_context = f"\n\n[Contenu scrape depuis {url}]\n{scraped_content}"
+                    print("Contenu supplementaire recupere avec succes.\n")
+        
+        user_prompt = (
+            f"Contexte (extraits pertinents):{context}{additional_context}\n\n"
+            f"Question: {question}\n\n"
+            "Reponds de facon claire et concise en te basant sur les extraits fournis. "
+            "Si l'information n'est pas dans les extraits, dis-le clairement."
+        )
+        
+        # Streaming de la réponse
+        for chunk in self._generate_stream(SYSTEM_PROMPT, user_prompt):
+            if chunk is None and fallback_mode:
+                print("\nGemini est indisponible. Voici un resume basique des documents trouves:")
+                yield self._fallback_answer(docs, question)
+                break
+            elif chunk is not None:
+                yield chunk
+        
+        # Retourner les docs à la fin (via un tuple spécial)
+        yield ("__DOCS__", docs)
     
     def _fallback_answer(self, docs, question):
         """Réponse de secours sans LLM"""

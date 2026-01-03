@@ -806,8 +806,16 @@ def main():
     # Conteneur chat
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
-    for message in st.session_state.messages:
-        display_chat_message(message)
+    # Créer un conteneur pour les messages existants
+    messages_container = st.container()
+    
+    # Conteneur pour le message en streaming (sera utilisé si nécessaire)
+    streaming_container = st.empty()
+    
+    # Afficher tous les messages de l'historique
+    with messages_container:
+        for message in st.session_state.messages:
+            display_chat_message(message)
     
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -824,6 +832,10 @@ def main():
             "content": user_input,
             "timestamp": datetime.now().strftime("%H:%M")
         })
+        
+        # Afficher immédiatement le message utilisateur
+        with messages_container:
+            display_chat_message(st.session_state.messages[-1])
         
         # Traiter la réponse
         if st.session_state.pending_form:
@@ -848,90 +860,80 @@ def main():
             elif is_question and len(user_input) > 20:
                 # C'est probablement une vraie question, pas des données de formulaire
                 st.session_state.pending_form = None
-                result = st.session_state.orchestrator.route(user_input)
                 
-                if result.get("success"):
+                # Utiliser le streaming pour les questions
+                full_response = ""
+                agent_name = "Assistant"
+                
+                try:
+                    for chunk in st.session_state.orchestrator.route_stream(user_input):
+                        if chunk.get("success"):
+                            agent_name = chunk.get("agent_used", "Assistant")
+                            
+                            if chunk.get("is_final"):
+                                # Message final avec métadonnées complètes
+                                full_response = chunk.get("response", full_response)
+                            elif "chunk" in chunk:
+                                # Chunk de streaming
+                                full_response += chunk["chunk"]
+                                # Afficher la réponse en cours avec animation
+                                with streaming_container.container():
+                                    st.markdown(f"""
+                                    <div class="chat-message assistant-message">
+                                        <div class="message-wrapper">
+                                            <div class="message-avatar assistant-avatar">{"R" if agent_name == "RAG Agent" else "A"}</div>
+                                            <div style="flex: 1;">
+                                                <div class="message-content">
+                                                    <span class="assistant-name">{agent_name}</span>
+                                                    <p>{full_response}▌</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                            else:
+                                # Agent ne supporte pas le streaming, réponse complète
+                                full_response = chunk.get("response", "Pas de réponse")
+                        else:
+                            full_response = f"Erreur: {chunk.get('error', 'Erreur inconnue')}"
+                    
+                    # Ajouter le message final à l'historique
                     st.session_state.messages.append({
                         "role": "assistant",
-                        "content": result.get("response", "Pas de réponse"),
-                        "agent": result.get("agent_used", "Assistant"),
+                        "content": full_response,
+                        "agent": agent_name,
                         "timestamp": datetime.now().strftime("%H:%M")
                     })
+                except Exception as e:
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": f"Erreur: {str(e)}",
+                        "agent": "Système",
+                        "timestamp": datetime.now().strftime("%H:%M")
+                    })
+                
                 st.rerun()
             else:
                 # Traiter comme données de formulaire
                 result = handle_form_input(user_input)
             
-            if result.get("success"):
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": result.get("response", "Pas de réponse"),
-                    "agent": result.get("agent_used", "Assistant"),
-                    "timestamp": datetime.now().strftime("%H:%M")
-                })
-                
-                if result.get("form_submitted"):
-                    st.session_state.pending_form = None
-                    st.session_state.messages.append({
-                        "role": "assistant", 
-                        "content": "Le formulaire a été envoyé avec succès ! Comment puis-je vous aider maintenant ?",
-                        "agent": "Contact Agent",
-                        "timestamp": datetime.now().strftime("%H:%M")
-                    })
-                    st.balloons()
-            else:
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": f"Erreur: {result.get('error', 'Erreur inconnue')}",
-                    "agent": "Système",
-                    "timestamp": datetime.now().strftime("%H:%M")
-                })
-            
-            st.rerun()
-        else:
-            # Déterminer quel agent va traiter
-            result = st.session_state.orchestrator.route(user_input)
-            
-            if result.get("agent_used") == "RAG Agent" and result.get("success"):
-                # Streaming pour RAG
-                rag_result = handle_rag_response(user_input)
-                
-                if rag_result.get("success"):
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": rag_result.get("response"),
-                        "agent": "RAG Agent",
-                        "timestamp": datetime.now().strftime("%H:%M")
-                    })
-                else:
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": result.get("response", "Pas de réponse"),
-                        "agent": result.get("agent_used", "Assistant"),
-                        "timestamp": datetime.now().strftime("%H:%M")
-                    })
-            else:
-                # Pas de streaming pour les autres agents
                 if result.get("success"):
-                    assistant_message = {
+                    st.session_state.messages.append({
                         "role": "assistant",
                         "content": result.get("response", "Pas de réponse"),
                         "agent": result.get("agent_used", "Assistant"),
                         "timestamp": datetime.now().strftime("%H:%M")
-                    }
+                    })
                     
-                    # Gérer les formulaires
-                    if result.get("requires_form"):
-                        st.session_state.pending_form = result["form"]
-                        assistant_message["form_info"] = {
-                            "service": result.get("service"),
-                            "email": result["form"]["service_email"]
-                        }
-                    elif result.get("form_submitted"):
+                    if result.get("form_submitted"):
                         st.session_state.pending_form = None
+                        st.session_state.messages.append({
+                            "role": "assistant", 
+                            "content": "Le formulaire a été envoyé avec succès ! Comment puis-je vous aider maintenant ?",
+                            "agent": "Contact Agent",
+                            "timestamp": datetime.now().strftime("%H:%M")
+                        })
                         st.balloons()
-                    
-                    st.session_state.messages.append(assistant_message)
                 else:
                     st.session_state.messages.append({
                         "role": "assistant",
@@ -939,6 +941,77 @@ def main():
                         "agent": "Système",
                         "timestamp": datetime.now().strftime("%H:%M")
                     })
+                
+                st.rerun()
+        else:
+            # Nouvelle question - utiliser le streaming
+            full_response = ""
+            agent_name = "Assistant"
+            
+            try:
+                for chunk in st.session_state.orchestrator.route_stream(user_input):
+                    if chunk.get("success"):
+                        agent_name = chunk.get("agent_used", "Assistant")
+                        
+                        if chunk.get("is_final"):
+                            # Message final avec métadonnées complètes
+                            full_response = chunk.get("response", full_response)
+                            
+                            # Gérer les formulaires si présent
+                            if chunk.get("requires_form"):
+                                st.session_state.pending_form = chunk["form"]
+                        elif "chunk" in chunk:
+                            # Chunk de streaming
+                            full_response += chunk["chunk"]
+                            # Afficher la réponse en cours avec animation
+                            with streaming_container.container():
+                                st.markdown(f"""
+                                <div class="chat-message assistant-message">
+                                    <div class="message-wrapper">
+                                        <div class="message-avatar assistant-avatar">{"R" if agent_name == "RAG Agent" else "C" if agent_name == "Contact Agent" else "A"}</div>
+                                        <div style="flex: 1;">
+                                            <div class="message-content">
+                                                <span class="assistant-name">{agent_name}</span>
+                                                <p>{full_response}▌</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            # Agent ne supporte pas le streaming, réponse complète
+                            full_response = chunk.get("response", "Pas de réponse")
+                            
+                            # Gérer les formulaires si présent
+                            if chunk.get("requires_form"):
+                                st.session_state.pending_form = chunk["form"]
+                    else:
+                        full_response = f"Erreur: {chunk.get('error', 'Erreur inconnue')}"
+                
+                # Ajouter le message final à l'historique
+                assistant_message = {
+                    "role": "assistant",
+                    "content": full_response,
+                    "agent": agent_name,
+                    "timestamp": datetime.now().strftime("%H:%M")
+                }
+                
+                # Ajouter les infos de formulaire si présent
+                if st.session_state.pending_form:
+                    assistant_message["form_info"] = {
+                        "service": st.session_state.pending_form.get("service", ""),
+                        "email": st.session_state.pending_form.get("service_email", "")
+                    }
+                
+                st.session_state.messages.append(assistant_message)
+                
+            except Exception as e:
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": f"Erreur: {str(e)}",
+                    "agent": "Système",
+                    "timestamp": datetime.now().strftime("%H:%M")
+                })
             
             st.rerun()
 

@@ -148,6 +148,61 @@ Intention:"""
             "response": "Désolé, je ne peux pas traiter cette demande pour le moment."
         }
     
+    def route_stream(self, query: str, context: Dict[str, Any] = None):
+        """
+        Route la requête vers l'agent approprié en mode streaming
+        
+        Args:
+            query: La requête utilisateur
+            context: Contexte additionnel (optionnel)
+            
+        Yields:
+            Chunks de la réponse de l'agent sélectionné
+        """
+        if not self.agents:
+            yield {
+                "success": False,
+                "error": "Aucun agent disponible",
+                "agent": "orchestrator"
+            }
+            return
+        
+        # Analyser l'intention
+        intent = self._analyze_intent(query)
+        print(f"\nIntention détectée: {intent}")
+        
+        # Trouver le premier agent capable de traiter la requête
+        for agent in self.agents:
+            if agent.can_handle(query, context):
+                print(f"Routage vers: {agent.name}")
+                try:
+                    # Vérifier si l'agent supporte le streaming
+                    if hasattr(agent, 'process_stream'):
+                        for chunk in agent.process_stream(query, context):
+                            chunk["agent_used"] = agent.name
+                            chunk["intent"] = intent
+                            yield chunk
+                        return
+                    else:
+                        # Fallback sur process normal si pas de streaming
+                        result = agent.process(query, context)
+                        result["agent_used"] = agent.name
+                        result["intent"] = intent
+                        yield result
+                        return
+                except Exception as e:
+                    print(f"Erreur lors du traitement par {agent.name}: {e}")
+                    continue
+        
+        # Aucun agent n'a pu traiter la requête
+        yield {
+            "success": False,
+            "error": "Aucun agent n'a pu traiter cette requête",
+            "agent_used": "none",
+            "intent": intent,
+            "response": "Désolé, je ne peux pas traiter cette demande pour le moment."
+        }
+    
     def list_agents(self) -> List[str]:
         """Retourne la liste des agents enregistrés"""
         return [agent.name for agent in self.agents]
