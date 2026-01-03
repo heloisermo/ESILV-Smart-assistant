@@ -82,8 +82,8 @@ st.markdown("""
     .header-container {
         background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
         border-bottom: 1px solid #e8eaed;
-        padding: 3rem 3rem 2rem 3rem;
-        margin-bottom: 2rem;
+        padding: 1.5rem 3rem 1rem 3rem;
+        margin-bottom: 0;
     }
     
     .logo-section {
@@ -130,8 +130,8 @@ st.markdown("""
     .chat-container {
         max-width: 1000px;
         margin: 0 auto;
-        padding: 0 3rem 2rem 3rem;
-        height: calc(100vh - 350px);
+        padding: 0.25rem 3rem 2rem 3rem;
+        min-height: auto;
         overflow-y: auto;
         scroll-behavior: smooth;
     }
@@ -618,7 +618,7 @@ def handle_rag_response(query):
         for agent in st.session_state.orchestrator.agents:
             if isinstance(agent, RAGAgent) and agent.rag_system:
                 # Utiliser le mode streaming
-                generator = agent.rag_system.answer(query, k=5, stream=True)
+                generator = agent.rag_system.answer(query, k=10)
                 
                 # Créer un placeholder pour la réponse
                 response_placeholder = st.empty()
@@ -713,10 +713,6 @@ def render_admin_panel():
     
     # Bouton de déconnexion
     col1, col2, col3 = st.columns([1, 2, 1])
-    with col1:
-        if st.button("← Retour au chat", use_container_width=True):
-            st.session_state.admin_mode = False
-            st.rerun()
     with col3:
         if st.button("Déconnexion", use_container_width=True, type="secondary"):
             logout()

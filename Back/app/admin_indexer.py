@@ -249,9 +249,9 @@ def smart_chunk_text(
     start = 0
     
     while start < len(text):
-        end = start + chunk_size
+        end = min(start + chunk_size, len(text))
         
-        # If at end of text
+        # If this is the last chunk or near the end
         if end >= len(text):
             chunk = text[start:].strip()
             if len(chunk) >= min_chunk_size:
@@ -268,14 +268,19 @@ def smart_chunk_text(
             sentence_ends.append(search_start + match.end())
         
         if sentence_ends:
+            # Use the last sentence end found
             end = sentence_ends[-1]
+        # If no sentence end found, just use the chunk_size boundary
         
         chunk = text[start:end].strip()
         
         if len(chunk) >= min_chunk_size:
             chunks.append(chunk)
         
+        # Move start forward, ensuring progress
         start = end - overlap
+        if start <= 0:
+            start = end
     
     return chunks
 
@@ -614,3 +619,25 @@ def get_index_stats() -> Dict[str, Any]:
         stats["error"] = str(e)
     
     return stats
+
+if __name__ == "__main__":
+    """Main entry point for running admin_indexer as a script"""
+    print("=" * 60)
+    print("INDEXATION FAISS - Admin Indexer")
+    print("=" * 60 + "\n")
+    
+    # Run rebuild_index with console output
+    def progress_callback(progress, step, message):
+        print(f"[{progress*100:5.1f}%] {step:15s} {message}")
+    
+    success, message, stats = rebuild_index(progress_callback=progress_callback)
+    
+    if success:
+        print(f"\n✅ {message}")
+        print(f"\nStatistiques d'indexation:")
+        print(f"  - Documents indexés: {stats.get('document_count', 0)}")
+        print(f"  - Chunks créés: {stats.get('chunk_count', 0)}")
+        print(f"  - Dimension des embeddings: {stats.get('embedding_dim', 0)}")
+    else:
+        print(f"\n❌ Erreur: {message}")
+        exit(1)

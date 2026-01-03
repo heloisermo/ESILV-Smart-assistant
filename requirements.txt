@@ -16,6 +16,7 @@ streamlit>=1.28.0
 
 # PDF processing
 PyPDF2>=3.0.0
+pdfplumber>=0.9.0
 
 # Data manipulation
 pandas>=2.0.0

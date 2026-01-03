@@ -302,23 +302,21 @@ if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
     
     print("=" * 60)
-    print("SCRAPING ESILV - Depuis url.txt")
+    print("SCRAPING ESILV - Depuis SCRAPING_URL dans .env")
     print("=" * 60 + "\n")
     
     # Archiver les anciens fichiers
     archive_old_files()
     
-    # Charger les URLs depuis le fichier
-    urls = load_urls_from_file("data/url.txt")
-    
-    if not urls:
-        print("Aucune URL a scraper. Veuillez verifier le fichier data/url.txt")
+    # Utiliser SCRAPING_URL depuis le .env
+    if not START_URL:
+        print("ERREUR: SCRAPING_URL n'est pas défini dans le fichier .env")
         exit(1)
     
-    print(f"URLs chargees: {len(urls)}\n")
+    print(f"Scraping depuis: {START_URL}\n")
     
-    # Scraper les URLs
-    data = scrape_urls_from_list(urls)
+    # Scraper le site de manière récursive
+    data = scrape_site_recursive(START_URL, max_pages=500)
     
     print(f"\n{len(data)} pages scrapees avec succes")
     print(f"Sauvegarde dans data/scraped_data.json...")

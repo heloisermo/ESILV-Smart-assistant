@@ -76,12 +76,17 @@ class ContactAgent(BaseAgent):
         """
         query_lower = query.lower()
         
-        # Mots-clés de contact actif
+        # Mots-clés de contact actif - étendu pour couvrir plus de variantes
         contact_action_keywords = [
             'contacter', 'joindre', 'écrire', 'parler à', 'parler avec',
             'rencontrer', 'rendez-vous', 'rdv', 'envoyer un message',
             'je veux contacter', 'je voudrais contacter', 'j\'aimerais contacter',
-            'envoyer un email', 'envoyer un mail', 'prendre contact'
+            'envoyer un email', 'envoyer un mail', 'prendre contact',
+            'je peux etre contacté', 'je peux être contacté',
+            'demande de contact', 'formulaire de contact',
+            'faire une demande', 'une demande',
+            'vie associative', 'association',
+            'recontacté', 'être recontacté'
         ]
         
         return any(keyword in query_lower for keyword in contact_action_keywords)
