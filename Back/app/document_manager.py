@@ -28,11 +28,6 @@ try:
 except ImportError:
     PyPDF2 = None
 
-try:
-    import pdfplumber
-except ImportError:
-    pdfplumber = None
-
 
 def ensure_upload_dir():
     """Ensure the upload directory exists"""
@@ -84,7 +79,6 @@ def _save_processed_documents(documents: Dict[str, Any]):
 def extract_pdf_text(file_path: str) -> Tuple[str, int]:
     """
     Extract text from PDF file
-    Uses pdfplumber first (better for complex layouts), falls back to PyPDF2
     
     Args:
         file_path: Path to PDF file
@@ -92,29 +86,13 @@ def extract_pdf_text(file_path: str) -> Tuple[str, int]:
     Returns:
         Tuple of (text content, page count)
     """
-    text_parts = []
-    page_count = 0
-    
-    # Try pdfplumber first (better for complex layouts)
-    if pdfplumber is not None:
-        try:
-            with pdfplumber.open(file_path) as pdf:
-                page_count = len(pdf.pages)
-                for page in pdf.pages:
-                    text = page.extract_text()
-                    if text:
-                        text_parts.append(text)
-            
-            if text_parts:
-                return "\n".join(text_parts), page_count
-        except Exception as e:
-            print(f"Warning: pdfplumber extraction failed, trying PyPDF2: {e}")
-    
-    # Fallback to PyPDF2
     if PyPDF2 is None:
-        raise Exception("Neither pdfplumber nor PyPDF2 is installed. Please install pdfplumber: pip install pdfplumber")
+        raise Exception("PyPDF2 is not installed. Please install it: pip install PyPDF2")
     
     try:
+        text_parts = []
+        page_count = 0
+        
         with open(file_path, "rb") as f:
             pdf_reader = PyPDF2.PdfReader(f)
             page_count = len(pdf_reader.pages)

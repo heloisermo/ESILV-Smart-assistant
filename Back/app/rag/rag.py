@@ -119,40 +119,24 @@ class FaissRAGGemini:
         assert q_emb.shape[1] == self.index.d, \
             f"Dimension mismatch: query={q_emb.shape[1]}, index={self.index.d}"
 
-        # Récupérer plus de résultats pour filtrer les mauvaises sources
-        scores, ids = self.index.search(q_emb, k * 3)
+        scores, ids = self.index.search(q_emb, k)
 
         results = []
         print(f"\nRecherche: '{query}'")
         print(f"Top {k} chunks pertinents:")
 
-        # Filtrer les PDFs scrapés pourris (contenant "download/")
-        filtered_count = 0
         for rank, (i, score) in enumerate(zip(ids[0], scores[0]), 1):
             if i == -1:
                 continue
-            
-            url = self.urls[i]
-            # Ignorer les PDFs scrapés de esilv.fr/download/ qui sont corrompus
-            if "download/" in url and "esilv.fr/download/" in url:
-                filtered_count += 1
-                continue
-            
             text_preview = self.texts[i][:100].replace('\n', ' ')
             print(f"  {rank}. Score: {score:.4f} | {text_preview}...")
-            print(f"     Source: {url[:80]}")
+            print(f"     Source: {self.urls[i][:80]}")
             results.append({
-                "url": url,
+                "url": self.urls[i],
                 "text": self.texts[i],
                 "score": float(score),
                 "chunk_id": int(i),
             })
-            
-            if len(results) >= k:
-                break
-        
-        if filtered_count > 0:
-            print(f"  ({filtered_count} résultats de PDFs corrompus ignorés)")
 
         return results
 
@@ -231,8 +215,7 @@ class FaissRAGGemini:
             full_prompt = f"{system_prompt}\n\n{user_prompt}"
             
             response = self.llm.generate_content(
-                full_prompt,
-                stream=False  # On utilise stream=False ici car on retourne la réponse complète
+                full_prompt
             )
             
             return response.text.strip()
@@ -286,8 +269,6 @@ class FaissRAGGemini:
             ans = self._fallback_answer(docs, question)
         
         return ans, docs
-
-
     
     def _fallback_answer(self, docs, question):
         """Réponse de secours sans LLM"""

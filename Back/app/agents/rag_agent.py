@@ -75,24 +75,20 @@ class RAGAgent(BaseAgent):
     def can_handle(self, query: str, context: Dict[str, Any] = None) -> bool:
         """
         Détermine si cet agent peut traiter la requête
-        RAG Agent traite UNIQUEMENT les questions informationnelles, pas les demandes de contact
         """
         if not self.rag_system:
             return False
         
         query_lower = query.lower()
         
-        # Mots-clés de contact à éviter - liste complète
+        # Mots-clés de contact à éviter
         contact_keywords = [
             'contacter', 'joindre', 'appeler', 'téléphone', 'email',
-            'mail', 'écrire', 'parler', 'rencontrer', 'rendez-vous', 'rdv',
-            'demande de contact', 'formulaire de contact', 'faire une demande',
-            'contacté par', 'recontacté', 'être contacté', 'me contacter', 'nous contacter'
+            'mail', 'écrire', 'parler', 'rencontrer', 'rendez-vous'
         ]
         
         is_contact_request = any(keyword in query_lower for keyword in contact_keywords)
         
-        # RAG Agent refuse les demandes de contact
         return not is_contact_request
     
     def process(self, query: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -134,7 +130,6 @@ class RAGAgent(BaseAgent):
                 "error": str(e),
                 "response": "Désolé, une erreur s'est produite lors de la recherche d'informations."
             }
-
     
     def get_description(self) -> str:
         """Retourne une description de l'agent"""

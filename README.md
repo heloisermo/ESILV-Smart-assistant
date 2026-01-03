@@ -98,16 +98,11 @@ Cette commande va :
 
 ### 6. Indexer les données (première fois)
 
-Cette étape va créer l'index de recherche vectorielle avec le contenu scrapé :
+Cette étape va créer l'index de recherche vectorielle :
 
 ```bash
-python Back/app/rag/indexer.py
+python Back/app/admin_indexer.py
 ```
-
-**⚠️ Important :** 
-- Utilisez **`indexer.py`** (pas `admin_indexer.py`) pour la première indexation
-- `indexer.py` : Crée l'index initial avec tous les documents scrapés du site
-- `admin_indexer.py` : Utilisé **après** pour ajouter/retirer des documents via l'interface admin
 
 Cette commande va :
 - Charger les données de `data/scraped_data.json`
@@ -115,8 +110,7 @@ Cette commande va :
 - Créer les embeddings vectoriels avec le modèle `paraphrase-multilingual-MiniLM-L12-v2`
 - Générer l'index FAISS dans `data/faiss_index.bin`
 - Sauvegarder le mapping dans `data/faiss_mapping.json`
-- **Prendre 30-45 minutes** (c'est normal la première fois avec beaucoup de pages)
-- Créer environ 500 000+ chunks (normal avec 500 pages + PDFs)
+- Prendre environ 2-5 minutes selon la quantité de données
 
 ### 7. Lancer l'application
 
