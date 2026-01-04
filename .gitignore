@@ -15,17 +15,31 @@
 dist/
 build/
 
-# Data directories
-data/
-data/*
+# Data directories - Ignorer seulement les fichiers temporaires
+data/archive*/
+data/uploads/
+data/leads/
+!data/faiss_index.bin
+!data/faiss_mapping.json
+!data/processed_documents.json
 !data/.gitkeep
+
+# Données RAG dans Back/app/rag/data/
+Back/app/rag/data/archive*/
+!Back/app/rag/data/faiss_index.bin
+!Back/app/rag/data/faiss_mapping.json
+!Back/app/rag/data/scraped_data.json
 
 # Model cache (ne pas versionner les modèles ML)
 model_cache/
 
 # GCP credentials (NE JAMAIS COMMITER)
 Back/app/*.json
-*.json
+# Exceptions pour les fichiers JSON essentiels
+!data/faiss_mapping.json
+!data/processed_documents.json
+!Back/app/rag/data/faiss_mapping.json
+!Back/app/rag/data/scraped_data.json
 !package.json
 !tsconfig.json
 
