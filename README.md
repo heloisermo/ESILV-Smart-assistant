@@ -2,7 +2,8 @@
 
 🤖 Assistant intelligent pour l'ESILV utilisant le scraping web, la recherche vectorielle (RAG) et Google Vertex AI.
 
-**🌐 Site du projet :** [https://esilv-chatbot-970477989170.us-central1.run.app/](https://esilv-chatbot-970477989170.us-central1.run.app/)
+**🌐 Site du projet :** [https://esilv-chatbot-970477989170.us-central1.run.app/](https://esilv-chatbot-970477989170.us-central1.run.app/)  
+**🔑 Mot de passe admin :** `admin2025` (pour tester l'interface d'administration)
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io/)
