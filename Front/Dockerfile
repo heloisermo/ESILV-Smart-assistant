@@ -4,18 +4,18 @@ FROM python:3.11-slim
 # Définir le répertoire de travail
 WORKDIR /app
 
-# Copier les fichiers de requirements depuis la racine
+# Copier requirements.txt depuis Front/
 COPY requirements.txt .
 
 # Installer les dépendances
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le code de l'application
-COPY Back/ /app/Back/
-COPY Front/ /app/Front/
-COPY admin_pages/ /app/admin_pages/
-COPY config.py /app/
-COPY data/ /app/data/
+# Copier le code depuis le parent (contexte = Front/, donc ../ pour parent)
+COPY ../Back/ /app/Back/
+COPY . /app/Front/
+COPY ../admin_pages/ /app/admin_pages/
+COPY ../config.py /app/
+COPY ../data/ /app/data/
 
 # Définir le répertoire de travail pour l'app
 WORKDIR /app/Front
