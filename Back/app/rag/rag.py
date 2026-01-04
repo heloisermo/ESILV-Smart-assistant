@@ -14,9 +14,16 @@ load_dotenv()
 
 # Utiliser des chemins absolus pour trouver les fichiers depuis n'importe où
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-DATA_DIR = os.path.join(PROJECT_ROOT, "data")
-INDEX_PATH = os.path.join(DATA_DIR, "faiss_index.bin")
-MAPPING_PATH = os.path.join(DATA_DIR, "faiss_mapping.json")
+
+# Chemins pour l'index des PDFs uploadés
+PDF_DATA_DIR = os.path.join(PROJECT_ROOT, "data")
+PDF_INDEX_PATH = os.path.join(PDF_DATA_DIR, "faiss_index.bin")
+PDF_MAPPING_PATH = os.path.join(PDF_DATA_DIR, "faiss_mapping.json")
+
+# Chemins pour l'index des URLs scraped
+RAG_DATA_DIR = os.path.join(PROJECT_ROOT, "Back", "app", "rag", "data")
+RAG_INDEX_PATH = os.path.join(RAG_DATA_DIR, "faiss_index.bin")
+RAG_MAPPING_PATH = os.path.join(RAG_DATA_DIR, "faiss_mapping.json")
 
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 VERTEX_MODEL = os.getenv("VERTEX_MODEL", "gemini-2.0-flash-exp")
@@ -39,39 +46,40 @@ class FaissRAGGemini:
         except Exception as e:
             raise ValueError(f"Erreur initialisation Vertex AI: {e}")
         
-        # Vérifier que l'index existe
-        if not os.path.exists(INDEX_PATH):
-            print(f"Index FAISS non trouvé: {INDEX_PATH}")
-            print("Crée d'abord des documents via l'Administration > Document Management")
-            self.index = None
-            self.urls = []
-            self.texts = []
-            self.doc_indices = []
-            self.model = SentenceTransformer(MODEL_NAME)
-            return
+        # Charger l'index des PDFs uploadés
+        self.pdf_index = None
+        self.pdf_urls = []
+        self.pdf_texts = []
         
-        if not os.path.exists(MAPPING_PATH):
-            print(f"Mapping FAISS non trouvé: {MAPPING_PATH}")
-            self.index = None
-            self.urls = []
-            self.texts = []
-            self.doc_indices = []
-            self.model = SentenceTransformer(MODEL_NAME)
-            return
+        if os.path.exists(PDF_INDEX_PATH) and os.path.exists(PDF_MAPPING_PATH):
+            self.pdf_index = faiss.read_index(PDF_INDEX_PATH)
+            with open(PDF_MAPPING_PATH, "r", encoding="utf-8") as f:
+                mapping = json.load(f)
+            self.pdf_urls = mapping["urls"]
+            self.pdf_texts = mapping["texts"]
+            print(f"Index PDFs charge : {len(self.pdf_texts)} chunks")
+        else:
+            print(f"Index PDFs non trouve")
         
-        self.index = faiss.read_index(INDEX_PATH)
-        with open(MAPPING_PATH, "r", encoding="utf-8") as f:
-            mapping = json.load(f)
-        self.urls = mapping["urls"]
-        self.texts = mapping["texts"]
-        # Charger les indices de documents (optionnel, pour info)
-        self.doc_indices = mapping.get("doc_indices", None)
+        # Charger l'index des URLs scraped
+        self.rag_index = None
+        self.rag_urls = []
+        self.rag_texts = []
+        
+        if os.path.exists(RAG_INDEX_PATH) and os.path.exists(RAG_MAPPING_PATH):
+            self.rag_index = faiss.read_index(RAG_INDEX_PATH)
+            with open(RAG_MAPPING_PATH, "r", encoding="utf-8") as f:
+                mapping = json.load(f)
+            self.rag_urls = mapping["urls"]
+            self.rag_texts = mapping["texts"]
+            print(f"Index URLs scraped charge : {len(self.rag_texts)} chunks")
+        else:
+            print(f"Index URLs scraped non trouve")
         
         # NE PAS charger le modèle au démarrage (lazy loading)
         self.model = None
         self.gcp_cache_path = '/root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/snapshots/86741b4e3f5cb7765a600d3a3d55a0f6a6cb443d'
         
-        print(f"Index charge : {len(self.texts)} chunks")
         print(f"Modele Vertex AI : {VERTEX_MODEL}")
         print("Modele d'embedding sera charge a la premiere utilisation")
 
@@ -129,6 +137,10 @@ class FaissRAGGemini:
         # Charger le modèle si nécessaire
         self._ensure_model_loaded()
         
+    def retrieve(self, query, k=5):
+        """Recherche dans les DEUX index (PDFs + URLs) et retourne les k meilleurs résultats combinés"""
+        self._ensure_model_loaded()
+        
         q_emb = self.model.encode(
             [query],
             convert_to_numpy=True,
@@ -136,27 +148,44 @@ class FaissRAGGemini:
         )
         q_emb = np.ascontiguousarray(q_emb, dtype="float32")
 
-        assert q_emb.shape[1] == self.index.d, \
-            f"Dimension mismatch: query={q_emb.shape[1]}, index={self.index.d}"
-
-        scores, ids = self.index.search(q_emb, k)
-
         results = []
+        
+        # Chercher dans l'index des PDFs
+        if self.pdf_index is not None:
+            scores, ids = self.pdf_index.search(q_emb, k)
+            for i, score in zip(ids[0], scores[0]):
+                if i != -1 and i < len(self.pdf_texts):
+                    results.append({
+                        "url": self.pdf_urls[i],
+                        "text": self.pdf_texts[i],
+                        "score": float(score),
+                        "chunk_id": int(i),
+                        "source": "PDF"
+                    })
+        
+        # Chercher dans l'index des URLs scraped
+        if self.rag_index is not None:
+            scores, ids = self.rag_index.search(q_emb, k)
+            for i, score in zip(ids[0], scores[0]):
+                if i != -1 and i < len(self.rag_texts):
+                    results.append({
+                        "url": self.rag_urls[i],
+                        "text": self.rag_texts[i],
+                        "score": float(score),
+                        "chunk_id": int(i),
+                        "source": "URL"
+                    })
+        
+        # Trier par score et garder les k meilleurs
+        results.sort(key=lambda x: x['score'], reverse=True)
+        results = results[:k]
+        
         print(f"\nRecherche: '{query}'")
         print(f"Top {k} chunks pertinents:")
-
-        for rank, (i, score) in enumerate(zip(ids[0], scores[0]), 1):
-            if i == -1:
-                continue
-            text_preview = self.texts[i][:100].replace('\n', ' ')
-            print(f"  {rank}. Score: {score:.4f} | {text_preview}...")
-            print(f"     Source: {self.urls[i][:80]}")
-            results.append({
-                "url": self.urls[i],
-                "text": self.texts[i],
-                "score": float(score),
-                "chunk_id": int(i),
-            })
+        for rank, r in enumerate(results, 1):
+            text_preview = r['text'][:100].replace('\n', ' ')
+            print(f"  {rank}. Score: {r['score']:.4f} [{r['source']}] | {text_preview}...")
+            print(f"     Source: {r['url'][:80]}")
 
         return results
 
