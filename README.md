@@ -1,6 +1,35 @@
 # ESILV Smart Assistant
 
-Assistant intelligent pour l'ESILV utilisant le scraping web, la recherche vectorielle (RAG) et Google Vertex AI.
+🤖 Assistant intelligent pour l'ESILV utilisant le scraping web, la recherche vectorielle (RAG) et Google Vertex AI.
+
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+## 📖 Table des matières
+
+- [Fonctionnalités](#-fonctionnalités)
+- [Installation et Configuration](#-installation-et-configuration-première-fois)
+- [Créer l'index initial](#-créer-lindex-initial-scraping--indexation)
+- [Lancer l'application](#-lancer-lapplication)
+- [Structure du projet](#-structure-du-projet)
+- [Mise à jour des données](#-mise-à-jour-des-données)
+- [Déploiement sur GCP](#-déploiement-sur-google-cloud-platform)
+- [Tests](#-tests)
+- [Configuration avancée](#️-configuration-avancée)
+- [Résolution des problèmes](#-résolution-des-problèmes)
+- [Contribution](#-contribution)
+
+## ✨ Fonctionnalités
+
+- 🔍 **Scraping web intelligent** : Extraction automatique du contenu du site ESILV
+- 🧠 **Recherche vectorielle (RAG)** : Recherche sémantique avec FAISS et embeddings multilingues
+- 🤖 **Multi-agents** : Orchestration intelligente entre agent RAG et agent de contact
+- 💬 **Interface conversationnelle** : Chat intuitif avec Streamlit
+- 📝 **Gestion des leads** : Collecte et export des demandes de contact
+- 📄 **Upload de documents** : Indexation de PDF, DOCX, TXT
+- 🔐 **Interface admin** : Gestion complète des données et réindexation
+- ☁️ **Déploiement GCP** : Prêt pour Cloud Run avec streaming optimisé
 
 ## 🚀 Installation et Configuration (Première fois)
 
@@ -80,9 +109,28 @@ ADMIN_PASSWORD=admin2025
 - Remplacer `VERTEX_PROJECT` par votre Project ID GCP
 - Le fichier `.env` est ignoré par git pour la sécurité
 
-### 5. Scraper le site (première fois)
+### 5. Créer l'index initial (scraping + indexation)
 
-Cette étape va récupérer tout le contenu du site ESILV :
+Pour initialiser la base de connaissances du chatbot, vous devez d'abord scraper le site web puis indexer les données. Il existe deux méthodes :
+
+#### Méthode 1 : Pipeline complet automatique (Recommandé pour débuter)
+
+```bash
+python Back/app/rag/main.py
+```
+
+Cette commande va automatiquement :
+1. Scraper le site ESILV (20 pages par défaut)
+2. Indexer les documents scrapés
+3. Effectuer un test de recherche
+
+Vous pouvez ajuster les paramètres dans le fichier `Back/app/rag/main.py` :
+- `max_pages` : nombre de pages à scraper
+- `max_depth` : profondeur de navigation
+
+#### Méthode 2 : Étapes manuelles (Pour plus de contrôle)
+
+**a) Scraper le site web**
 
 ```bash
 python Back/app/rag/scraper.py
@@ -90,29 +138,31 @@ python Back/app/rag/scraper.py
 
 Cette commande va :
 - Scraper jusqu'à 500 pages du site ESILV
+- Extraire le contenu principal de chaque page
 - Sauvegarder les données dans `data/scraped_data.json`
-- Prendre environ 5-10 minutes selon la vitesse de connexion
 - Créer une sauvegarde dans `data/archive_YYYYMMDD_HHMMSS/`
+- Prendre environ 5-10 minutes selon la vitesse de connexion
 
-**Note :** Les données scrapées sont sauvegardées localement et ne sont pas versionnées dans git.
-
-### 6. Indexer les données (première fois)
-
-Cette étape va créer l'index de recherche vectorielle :
+**b) Indexer les données scrapées**
 
 ```bash
-python Back/app/admin_indexer.py
+python Back/app/rag/indexer.py
 ```
 
 Cette commande va :
 - Charger les données de `data/scraped_data.json`
-- Découper le contenu en chunks optimisés
+- Découper le contenu en chunks optimisés (1000 caractères avec 100 de chevauchement)
 - Créer les embeddings vectoriels avec le modèle `paraphrase-multilingual-MiniLM-L12-v2`
 - Générer l'index FAISS dans `data/faiss_index.bin`
 - Sauvegarder le mapping dans `data/faiss_mapping.json`
 - Prendre environ 2-5 minutes selon la quantité de données
 
-### 7. Lancer l'application
+**Note importante :** 
+- Les scripts dans `Back/app/rag/` sont utilisés pour l'indexation **initiale** à partir du scraping web
+- Le module `admin_indexer.py` est utilisé par l'interface Streamlit pour la **réindexation** et la gestion des documents uploadés
+- Les données générées sont sauvegardées localement et ne sont pas versionnées dans git
+
+### 6. Lancer l'application
 
 #### Interface utilisateur (Streamlit)
 
@@ -144,8 +194,8 @@ ESILV-Smart-assistant/
 ├── Back/
 │   └── app/
 │       ├── esilv-smart-assistant-xxxxx.json  # Credentials GCP (à placer - ignoré par git)
-│       ├── admin_indexer.py                  # Module d'indexation
-│       ├── document_manager.py               # Gestion des documents
+│       ├── admin_indexer.py                  # Indexation pour l'interface admin (réindexation)
+│       ├── document_manager.py               # Gestion des documents uploadés
 │       ├── leads_manager.py                  # Gestion des leads
 │       │
 │       ├── agents/                           # Agents conversationnels
@@ -154,15 +204,16 @@ ESILV-Smart-assistant/
 │       │   ├── contact_agent.py             # Agent de contact
 │       │   └── base_agent.py                # Classe de base
 │       │
-│       └── rag/                             # Système RAG
-│           ├── scraper.py                   # Script de scraping
-│           ├── indexer.py                   # Script d'indexation
+│       └── rag/                             # Système RAG (indexation initiale)
+│           ├── main.py                      # Pipeline complet scraping + indexation
+│           ├── scraper.py                   # Script de scraping web
+│           ├── indexer.py                   # Script d'indexation initiale
 │           ├── chunker.py                   # Découpage de texte
-│           └── rag.py                       # Recherche vectorielle
+│           └── rag.py                       # Recherche vectorielle (utilisé par le chatbot)
 │
 ├── Front/
 │   ├── streamlit_app.py         # Interface utilisateur
-│   ├── DEPLOYMENT.md            # Guide de déploiement
+│   ├── Dockerfile               # Configuration Docker pour déploiement
 │   └── assets/                  # Ressources visuelles
 │
 └── admin_pages/                 # Pages d'administration
@@ -173,36 +224,195 @@ ESILV-Smart-assistant/
 
 ## 🔄 Mise à jour des données
 
-### Re-scraper le site
+### Re-scraper et re-indexer
 
-Pour mettre à jour les données du site ESILV :
+Pour mettre à jour les données du site ESILV, vous pouvez :
 
+#### Via le pipeline complet
 ```bash
+python Back/app/rag/main.py
+```
+
+#### Via les étapes manuelles
+```bash
+# 1. Re-scraper le site
 python Back/app/rag/scraper.py
+
+# 2. Re-indexer les données
+python Back/app/rag/indexer.py
 ```
 
-### Re-indexer après scraping
-
-Après avoir re-scrapé, il faut re-indexer :
-
-```bash
-python Back/app/admin_indexer.py
-```
-
-### Via l'interface admin
+#### Via l'interface admin
 
 L'application Streamlit inclut une interface d'administration accessible depuis le menu latéral qui permet de :
-- Re-scraper et re-indexer directement
-- Gérer les documents uploadés
-- Consulter les leads/contacts
+- Re-scraper et re-indexer directement depuis l'interface
+- Gérer les documents uploadés (PDF, DOCX, TXT)
+- Consulter et exporter les leads/contacts
+
+**Note :** L'interface admin utilise `admin_indexer.py` pour gérer l'indexation.
+
+## 🚀 Déploiement sur Google Cloud Platform
+
+### Prérequis pour le déploiement
+
+1. **Compte GCP** avec facturation activée
+2. **Google Cloud SDK** installé ([Installation](https://cloud.google.com/sdk/docs/install))
+3. **Docker** installé (optionnel, pour tester localement)
+
+### Configuration initiale GCP
+
+```bash
+# Se connecter à GCP
+gcloud auth login
+
+# Définir votre projet
+gcloud config set project VOTRE_PROJECT_ID
+
+# Activer les APIs nécessaires
+gcloud services enable run.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable artifactregistry.googleapis.com
+```
+
+### Déploiement sur Cloud Run
+
+#### Option 1 : Déploiement avec variables d'environnement
+
+```bash
+# Depuis le dossier racine du projet
+cd ESILV-Smart-assistant
+
+# Construire et déployer
+gcloud run deploy esilv-chatbot \
+  --source ./Front \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --port 8501 \
+  --memory 2Gi \
+  --cpu 2 \
+  --timeout 300 \
+  --set-env-vars VERTEX_MODEL=gemini-2.0-flash-exp,VERTEX_PROJECT=votre-projet-gcp,VERTEX_LOCATION=us-central1
+```
+
+#### Option 2 : Déploiement avec fichier env.yaml
+
+Créez un fichier `env.yaml` à la racine :
+
+```yaml
+VERTEX_MODEL: "gemini-2.0-flash-exp"
+VERTEX_PROJECT: "votre-projet-gcp"
+VERTEX_LOCATION: "us-central1"
+ADMIN_PASSWORD: "votre-mot-de-passe-admin"
+```
+
+Puis déployez :
+
+```bash
+gcloud run deploy esilv-chatbot \
+  --source ./Front \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --env-vars-file env.yaml
+```
+
+#### Option 3 : Utilisation de Secret Manager (Recommandé pour la production)
+
+```bash
+# 1. Créer les secrets
+echo -n "votre-mot-de-passe-admin" | gcloud secrets create admin-password --data-file=-
+
+# 2. Donner accès à Cloud Run
+PROJECT_NUMBER=$(gcloud projects describe VOTRE_PROJECT_ID --format="value(projectNumber)")
+gcloud secrets add-iam-policy-binding admin-password \
+  --member=serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com \
+  --role=roles/secretmanager.secretAccessor
+
+# 3. Déployer avec les secrets
+gcloud run deploy esilv-chatbot \
+  --source ./Front \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars VERTEX_MODEL=gemini-2.0-flash-exp,VERTEX_PROJECT=votre-projet-gcp \
+  --set-secrets ADMIN_PASSWORD=admin-password:latest
+```
+
+### Test local avec Docker
+
+```bash
+# Construire l'image
+cd Front
+docker build -t esilv-chatbot .
+
+# Lancer le conteneur
+docker run -p 8501:8501 --env-file ../.env esilv-chatbot
+
+# Accéder à http://localhost:8501
+```
+
+### Mise à jour du déploiement
+
+```bash
+# Redéployer avec la nouvelle version
+gcloud run deploy esilv-chatbot \
+  --source ./Front \
+  --platform managed \
+  --region us-central1
+```
+
+### Logs et monitoring
+
+```bash
+# Voir les logs
+gcloud run logs read esilv-chatbot --region us-central1
+
+# Voir les logs en temps réel
+gcloud run logs tail esilv-chatbot --region us-central1
+
+# Voir les builds en cours
+gcloud builds list --filter="status=WORKING" --limit=5
+```
+
+### Configuration d'un domaine personnalisé
+
+1. Aller dans la console Cloud Run
+2. Sélectionner votre service `esilv-chatbot`
+3. Cliquer sur "Manage custom domains"
+4. Suivre les instructions pour mapper votre domaine
+
+### Estimation des coûts Cloud Run
+
+Cloud Run facture selon l'utilisation :
+- **Gratuit** : 2 millions de requêtes/mois
+- **CPU** : ~$0.00002400 par vCPU-seconde
+- **Mémoire** : ~$0.00000250 par GiB-seconde
+- **Requêtes** : $0.40 par million de requêtes
+
+**Estimation** : ~10-50€/mois pour un usage modéré (quelques centaines d'utilisateurs)
+
+### Checklist de déploiement
+
+- [ ] Variables d'environnement configurées
+- [ ] Secrets créés dans Secret Manager (pour production)
+- [ ] APIs activées (Cloud Run, Cloud Build, Artifact Registry)
+- [ ] Facturation activée sur le projet GCP
+- [ ] Fichiers .env et credentials non commités (vérifier .gitignore)
+- [ ] Test en local réussi
+- [ ] Déploiement Cloud Run effectué
+- [ ] URL testée et fonctionnelle
+- [ ] Logs vérifiés (pas d'erreurs au démarrage)
 
 ## 🧪 Tests
 
-Pour tester le système RAG :
+Pour tester le système RAG complet (scraping + indexation + recherche) :
 
 ```bash
 python Back/app/rag/main.py
 ```
+
+Cette commande effectue un test complet du pipeline et affiche des résultats de recherche.
 
 ## ⚙️ Configuration avancée
 
@@ -260,6 +470,38 @@ Vérifier :
 2. Il contient des données valides
 3. Suffisamment d'espace disque disponible
 
-## 📝 Licence
+## 🤝 Contribution
 
-[À compléter selon votre licence]
+Les contributions sont les bienvenues ! Consultez le fichier [CONTRIBUTING.md](CONTRIBUTING.md) pour les guidelines.
+
+### Comment contribuer
+1. Fork le projet
+2. Créer une branche (`git checkout -b feature/AmazingFeature`)
+3. Commit les changements (`git commit -m 'Ajoute une fonctionnalité incroyable'`)
+4. Push vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrir une Pull Request
+
+## 📄 Licence
+
+Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+## 👥 Auteurs
+
+- **Équipe ESILV Smart Assistant** - Développement initial
+
+## 🙏 Remerciements
+
+- ESILV pour le contenu du site web
+- Google Cloud Platform pour Vertex AI
+- La communauté open source pour les bibliothèques utilisées
+
+## 📞 Support
+
+Pour toute question ou problème :
+- Ouvrir une [issue](../../issues) sur GitHub
+- Consulter la documentation
+- Contacter l'équipe de développement
+
+---
+
+**Fait avec ❤️ pour l'ESILV**

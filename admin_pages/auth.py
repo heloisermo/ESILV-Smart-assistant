@@ -1,12 +1,12 @@
 """
-Authentication module for the admin panel
-Handles password verification and session management
+Module d'authentification pour le panneau d'administration
+Gère la vérification du mot de passe et la gestion de session
 """
 import os
 import streamlit as st
 from dotenv import load_dotenv
 
-# Load environment variables
+# Charger les variables d'environnement
 load_dotenv()
 
 # Get admin password from .env
@@ -31,7 +31,7 @@ def check_password() -> bool:
     # Show password input
     st.markdown("""
     <div style='text-align: center; padding: 3rem 0;'>
-        <h2>🔐 Panneau d'Administration</h2>
+        <h2>Panneau d'Administration</h2>
         <p style='color: #666; margin-top: 1rem;'>
             Cette zone est restreinte. Veuillez entrer le mot de passe administrateur pour continuer.
         </p>
@@ -51,21 +51,21 @@ def check_password() -> bool:
         col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 1])
         
         with col_btn2:
-            if st.button("🔓 Connexion", width="stretch", type="primary"):
-                with st.spinner("🔄 Vérification en cours..."):
+            if st.button("Connexion", use_container_width=True, type="primary"):
+                with st.spinner("Vérification en cours..."):
                     if password_input == ADMIN_PASSWORD:
                         st.session_state.admin_authenticated = True
-                        st.success("✅ Authentification réussie ! Redirection...")
+                        st.success("Authentification réussie ! Redirection...")
                         st.rerun()
                     else:
-                        st.error("❌ Mot de passe incorrect. Accès refusé.")
+                        st.error("Mot de passe incorrect. Accès refusé.")
     
     return False
 
 
 def logout():
     """Déconnecter l'utilisateur administrateur"""
-    with st.spinner("🔄 Déconnexion en cours..."):
+    with st.spinner("Déconnexion en cours..."):
         st.session_state.admin_authenticated = False
 
 

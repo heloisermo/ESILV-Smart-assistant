@@ -1,6 +1,6 @@
 """
-Streamlit page for document management in the Administration tab
-Allows uploading, viewing, and managing indexed documents
+Page Streamlit pour la gestion des documents dans l'onglet Administration
+Permet de télécharger, visualiser et gérer les documents indexés
 """
 import streamlit as st
 import sys
@@ -28,7 +28,7 @@ from document_manager import (
 
 
 def format_bytes(bytes_val: int) -> str:
-    """Format bytes to human-readable format"""
+    """Formatte les octets en format lisible"""
     for unit in ['B', 'KB', 'MB', 'GB']:
         if bytes_val < 1024.0:
             return f"{bytes_val:.2f} {unit}"
@@ -37,7 +37,7 @@ def format_bytes(bytes_val: int) -> str:
 
 
 def format_datetime(iso_str: str) -> str:
-    """Format ISO datetime string to readable format"""
+    """Formate une date ISO en format lisible"""
     try:
         dt = datetime.fromisoformat(iso_str)
         return dt.strftime("%Y-%m-%d %H:%M:%S")

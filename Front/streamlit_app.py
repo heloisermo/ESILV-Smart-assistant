@@ -36,7 +36,7 @@ from document_management import render_document_management
 # Configuration de la page
 st.set_page_config(
     page_title="ESILV Assistant",
-    page_icon="🎓",
+    page_icon="📚",
     layout="wide",
     initial_sidebar_state="collapsed",
     menu_items={

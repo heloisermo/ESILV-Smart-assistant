@@ -1,7 +1,7 @@
 """
-Configuration and path management for ESILV Smart Assistant
-Centralizes path configuration to avoid conflicts and ensure proper separation
-between Assistant (user-facing) and Administration modules.
+Configuration et gestion des chemins pour ESILV Smart Assistant
+Centralise la configuration des chemins pour éviter les conflits
+entre les modules Assistant (interface utilisateur) et Administration
 """
 import os
 from pathlib import Path
@@ -37,7 +37,7 @@ ENV_FILE = PROJECT_ROOT / ".env"
 
 
 def ensure_directories():
-    """Ensure all necessary directories exist"""
+    """Crée tous les répertoires nécessaires s'ils n'existent pas"""
     directories = [
         DATA_DIR,
         LEADS_DATA_DIR,
@@ -52,7 +52,7 @@ def ensure_directories():
 
 
 def get_backend_paths():
-    """Get dictionary of all backend paths"""
+    """Retourne un dictionnaire de tous les chemins backend"""
     return {
         "app_dir": str(APP_DIR),
         "rag_dir": str(RAG_DIR),
@@ -62,7 +62,7 @@ def get_backend_paths():
 
 
 def get_admin_paths():
-    """Get dictionary of all admin-related paths"""
+    """Retourne un dictionnaire de tous les chemins liés à l'administration"""
     return {
         "leads_dir": str(LEADS_DATA_DIR),
         "leads_file": str(LEADS_FILE_PATH),

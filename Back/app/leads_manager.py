@@ -1,6 +1,6 @@
 """
-Module for managing leads/contacts collected by the chatbot
-Stores leads in JSON format for easy access and export
+Module de gestion des leads/contacts collectés par le chatbot
+Stocke les leads au format JSON pour un accès et export facile
 """
 import json
 import os
@@ -174,7 +174,7 @@ def update_lead(lead_id: int, **kwargs) -> Optional[Dict[str, Any]]:
 
 
 def get_leads_count() -> int:
-    """Get the total number of leads"""
+    """Retourne le nombre total de leads"""
     return len(load_leads())
 
 

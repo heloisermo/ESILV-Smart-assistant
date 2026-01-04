@@ -1,14 +1,54 @@
+# Environment variables
 .env
-# les pycache de chaque dossier
+.env.production
+.env.local
+
+# Python cache
 **/__pycache__/
 **/*.pyc
-# les dossiers data
+**/*.pyo
+**/*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Data directories
 data/
 data/*
-# Cache du modèle pour Docker (ne pas versionner)
-model_cache/
-# les init
-**/__init__.py
+!data/.gitkeep
 
-Back/app/esilv-smart-assistant-2a9d0c1b6de5.json
+# Model cache (ne pas versionner les modèles ML)
+model_cache/
+
+# GCP credentials (NE JAMAIS COMMITER)
+Back/app/*.json
+*.json
+!package.json
+!tsconfig.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Streamlit
+.streamlit/secrets.toml
 

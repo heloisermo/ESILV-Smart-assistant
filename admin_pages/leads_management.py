@@ -1,6 +1,6 @@
 """
-Streamlit page for leads management in the Administration tab
-Displays collected leads, allows search/filtering, and CSV export
+Page Streamlit pour la gestion des leads dans l'onglet Administration
+Affiche les leads collectés, permet la recherche/filtrage et l'export CSV
 """
 import streamlit as st
 import sys
@@ -24,7 +24,7 @@ from leads_manager import (
 
 
 def format_datetime(iso_str: str) -> str:
-    """Format ISO datetime string to readable format"""
+    """Formate une date ISO en format lisible"""
     try:
         dt = datetime.fromisoformat(iso_str)
         return dt.strftime("%Y-%m-%d %H:%M:%S")

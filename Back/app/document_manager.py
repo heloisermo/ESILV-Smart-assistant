@@ -1,6 +1,6 @@
 """
-Module for managing uploaded documents
-Handles document processing, storage, and metadata tracking
+Module de gestion des documents uploadés
+Gère le traitement, le stockage et le suivi des métadonnées des documents
 """
 import os
 import json
@@ -30,12 +30,12 @@ except ImportError:
 
 
 def ensure_upload_dir():
-    """Ensure the upload directory exists"""
+    """Crée le répertoire uploads s'il n'existe pas"""
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def _get_file_type(filename: str) -> str:
-    """Extract file type from filename"""
+    """Extrait le type de fichier depuis le nom du fichier"""
     ext = os.path.splitext(filename)[1].lower()
     
     if ext == ".pdf":
@@ -49,7 +49,7 @@ def _get_file_type(filename: str) -> str:
 
 
 def _get_file_size(file_path: str) -> int:
-    """Get file size in bytes"""
+    """Retourne la taille du fichier en octets"""
     try:
         return os.path.getsize(file_path)
     except OSError:
@@ -57,7 +57,7 @@ def _get_file_size(file_path: str) -> int:
 
 
 def _load_processed_documents() -> Dict[str, Any]:
-    """Load processed documents metadata"""
+    """Charge les métadonnées des documents traités"""
     if not os.path.exists(PROCESSED_DOCUMENTS_FILE):
         return {}
     
@@ -69,7 +69,7 @@ def _load_processed_documents() -> Dict[str, Any]:
 
 
 def _save_processed_documents(documents: Dict[str, Any]):
-    """Save processed documents metadata"""
+    """Sauvegarde les métadonnées des documents traités"""
     os.makedirs(os.path.dirname(PROCESSED_DOCUMENTS_FILE), exist_ok=True)
     
     with open(PROCESSED_DOCUMENTS_FILE, "w", encoding="utf-8") as f:
