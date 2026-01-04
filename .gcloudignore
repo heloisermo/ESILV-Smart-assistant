@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# Archives
+data/archive*/
+
+# Documentation (sauf README)
+*.md
+!README.md
+
+# Environment local
+.env
+.env.local
+
+# Système
+.DS_Store
+Thumbs.db

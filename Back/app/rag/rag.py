@@ -67,7 +67,17 @@ class FaissRAGGemini:
         # Charger les indices de documents (optionnel, pour info)
         self.doc_indices = mapping.get("doc_indices", None)
         
-        self.model = SentenceTransformer(MODEL_NAME)
+        # Charger le modèle : essayer d'abord le cache local (GCP), sinon télécharger (local)
+        gcp_cache_path = '/root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/snapshots/86741b4e3f5cb7765a600d3a3d55a0f6a6cb443d'
+        
+        if os.path.exists(gcp_cache_path):
+            # Sur GCP : utiliser le modèle pré-chargé dans le Docker
+            print("Chargement du modèle depuis le cache GCP")
+            self.model = SentenceTransformer(gcp_cache_path)
+        else:
+            # En local : télécharger normalement depuis HuggingFace
+            print(f"Chargement du modèle {MODEL_NAME} depuis HuggingFace")
+            self.model = SentenceTransformer(MODEL_NAME)
         
         print(f"Index charge : {len(self.texts)} chunks")
         print(f"Modele Vertex AI : {VERTEX_MODEL}")

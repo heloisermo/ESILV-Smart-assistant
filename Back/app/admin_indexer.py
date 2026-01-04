@@ -39,6 +39,8 @@ except ImportError:
     UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
 
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+# Chemin du modèle pré-chargé sur GCP (même que dans rag.py)
+GCP_MODEL_CACHE_PATH = '/root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/snapshots/86741b4e3f5cb7765a600d3a3d55a0f6a6cb443d'
 
 # Chunking parameters
 CHUNK_SIZE = 1000
@@ -330,7 +332,14 @@ def make_embeddings(texts: List[str], batch_size: int = 64) -> np.ndarray:
     Returns:
         NumPy array of embeddings
     """
-    model = SentenceTransformer(MODEL_NAME)
+    # Charger le modèle : GCP cache si disponible, sinon HuggingFace
+    if os.path.exists(GCP_MODEL_CACHE_PATH):
+        print("Admin: Chargement du modèle depuis le cache GCP")
+        model = SentenceTransformer(GCP_MODEL_CACHE_PATH)
+    else:
+        print(f"Admin: Chargement du modèle {MODEL_NAME} depuis HuggingFace")
+        model = SentenceTransformer(MODEL_NAME)
+    
     all_embeddings = []
     
     for i in range(0, len(texts), batch_size):

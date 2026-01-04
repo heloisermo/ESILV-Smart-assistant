@@ -13,6 +13,8 @@ MAPPING_PATH = "data/faiss_mapping.json"
 
 # Utiliser un modèle multilingue cohérent
 MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+# Chemin du modèle pré-chargé sur GCP
+GCP_MODEL_CACHE_PATH = '/root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/snapshots/86741b4e3f5cb7765a600d3a3d55a0f6a6cb443d'
 
 # Paramètres de chunking
 CHUNK_SIZE = 1000  # Taille d'un chunk en caractères (800-1500 recommandé)
@@ -25,7 +27,14 @@ def load_scraped_data(path):
 
 def make_embeddings(texts, batch_size=64):
     """Génère les embeddings par batch pour économiser la mémoire"""
-    model = SentenceTransformer(MODEL_NAME)
+    # Charger le modèle : GCP cache si disponible, sinon HuggingFace
+    if os.path.exists(GCP_MODEL_CACHE_PATH):
+        print("Indexer: Chargement du modèle depuis le cache GCP")
+        model = SentenceTransformer(GCP_MODEL_CACHE_PATH)
+    else:
+        print(f"Indexer: Chargement du modèle {MODEL_NAME} depuis HuggingFace")
+        model = SentenceTransformer(MODEL_NAME)
+    
     all_embeddings = []
     
     print(f"Génération des embeddings pour {len(texts)} textes...")

@@ -19,3 +19,7 @@ PyPDF2>=3.0.0
 
 # Data manipulation
 pandas>=2.0.0
+
+# Vector database et embeddings
+faiss-cpu>=1.7.4
+sentence-transformers>=2.2.0

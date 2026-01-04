@@ -10,6 +10,12 @@ COPY requirements.txt .
 # Installer les dépendances
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Créer le répertoire de cache HuggingFace
+RUN mkdir -p /root/.cache/huggingface/hub
+
+# Copier le modèle pré-téléchargé dans le cache
+COPY model_cache/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2 /root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2
+
 # Copier le code de l'application
 COPY Back/ /app/Back/
 COPY Front/ /app/Front/

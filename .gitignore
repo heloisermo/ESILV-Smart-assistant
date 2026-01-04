@@ -5,6 +5,8 @@
 # les dossiers data
 data/
 data/*
+# Cache du modèle pour Docker (ne pas versionner)
+model_cache/
 # les init
 **/__init__.py
 
