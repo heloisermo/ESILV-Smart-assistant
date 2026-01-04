@@ -67,20 +67,13 @@ class FaissRAGGemini:
         # Charger les indices de documents (optionnel, pour info)
         self.doc_indices = mapping.get("doc_indices", None)
         
-        # Charger le modèle : essayer d'abord le cache local (GCP), sinon télécharger (local)
-        gcp_cache_path = '/root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/snapshots/86741b4e3f5cb7765a600d3a3d55a0f6a6cb443d'
-        
-        if os.path.exists(gcp_cache_path):
-            # Sur GCP : utiliser le modèle pré-chargé dans le Docker
-            print("Chargement du modèle depuis le cache GCP")
-            self.model = SentenceTransformer(gcp_cache_path)
-        else:
-            # En local : télécharger normalement depuis HuggingFace
-            print(f"Chargement du modèle {MODEL_NAME} depuis HuggingFace")
-            self.model = SentenceTransformer(MODEL_NAME)
+        # NE PAS charger le modèle au démarrage (lazy loading)
+        self.model = None
+        self.gcp_cache_path = '/root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/snapshots/86741b4e3f5cb7765a600d3a3d55a0f6a6cb443d'
         
         print(f"Index charge : {len(self.texts)} chunks")
         print(f"Modele Vertex AI : {VERTEX_MODEL}")
+        print("Modele d'embedding sera charge a la premiere utilisation")
 
     def reload_index(self):
         """
@@ -118,7 +111,24 @@ class FaissRAGGemini:
             print(f"Erreur lors du rechargement de l'index: {e}")
             return False
 
+    def _ensure_model_loaded(self):
+        """Charge le modèle à la demande (lazy loading)"""
+        if self.model is not None:
+            return  # Déjà chargé
+        
+        print("Chargement du modèle d'embedding...")
+        if os.path.exists(self.gcp_cache_path):
+            print("Utilisation du cache GCP")
+            self.model = SentenceTransformer(self.gcp_cache_path)
+        else:
+            print(f"Téléchargement depuis HuggingFace: {MODEL_NAME}")
+            self.model = SentenceTransformer(MODEL_NAME)
+        print("Modèle chargé avec succès")
+
     def retrieve(self, query, k=5):
+        # Charger le modèle si nécessaire
+        self._ensure_model_loaded()
+        
         q_emb = self.model.encode(
             [query],
             convert_to_numpy=True,
