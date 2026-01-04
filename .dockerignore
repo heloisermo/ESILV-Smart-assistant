@@ -24,8 +24,9 @@ build/
 *.md
 !README.md
 
-# Data et cache
-data/archive*/
+# Data et cache - TOUT exclure car chargé depuis GCS
+data/
+Back/app/rag/data/
 *.log
 model_cache/
 
