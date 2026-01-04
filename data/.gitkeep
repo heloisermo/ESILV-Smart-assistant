@@ -1,0 +1,2 @@
+# Ce fichier permet de garder le dossier data dans git
+# Les données générées seront ignorées par .gitignore
