@@ -27,6 +27,7 @@ build/
 # Data et cache
 data/archive*/
 *.log
+model_cache/
 
 # Environment
 .env
