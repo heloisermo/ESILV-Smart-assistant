@@ -147,10 +147,9 @@ class FaissRAGGemini:
 
         results = []
         
-        # Chercher dans l'index des URLs scraped (plus pertinent pour les questions générales)
-        # On cherche plus de résultats (k*2) pour compenser la variabilité
+        # Chercher dans l'index des URLs scraped ET PDFs avec le même k
         if self.rag_index is not None:
-            scores, ids = self.rag_index.search(q_emb, k * 2)
+            scores, ids = self.rag_index.search(q_emb, k)
             for i, score in zip(ids[0], scores[0]):
                 if i != -1 and i < len(self.rag_texts):
                     results.append({
@@ -161,7 +160,7 @@ class FaissRAGGemini:
                         "source": "URL"
                     })
         
-        # Chercher dans l'index des PDFs (moins prioritaire)
+        # Chercher dans l'index des PDFs
         if self.pdf_index is not None:
             scores, ids = self.pdf_index.search(q_emb, k)
             for i, score in zip(ids[0], scores[0]):
@@ -174,13 +173,9 @@ class FaissRAGGemini:
                         "source": "PDF"
                     })
         
-        # Trier par score ET privilégier les URLs web
-        # Les URLs web obtiennent un bonus de score de 0.1 pour les prioriser
-        for r in results:
-            if r['source'] == 'URL':
-                r['score'] = r['score'] * 0.9  # Bonus: score plus bas = meilleur en distance L2
-        
-        results.sort(key=lambda x: x['score'], reverse=True)
+        # Trier par score (croissant car distance L2) et garder les k meilleurs
+        # Pas de bonus - URLs et PDFs sont traités à égalité
+        results.sort(key=lambda x: x['score'])
         results = results[:k]
         
         print(f"\nRecherche: '{query}'")
