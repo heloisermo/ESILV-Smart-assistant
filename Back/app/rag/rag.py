@@ -150,7 +150,21 @@ class FaissRAGGemini:
 
         results = []
         
-        # Chercher dans l'index des PDFs
+        # Chercher dans l'index des URLs scraped (plus pertinent pour les questions générales)
+        # On cherche plus de résultats (k*2) pour compenser la variabilité
+        if self.rag_index is not None:
+            scores, ids = self.rag_index.search(q_emb, k * 2)
+            for i, score in zip(ids[0], scores[0]):
+                if i != -1 and i < len(self.rag_texts):
+                    results.append({
+                        "url": self.rag_urls[i],
+                        "text": self.rag_texts[i],
+                        "score": float(score),
+                        "chunk_id": int(i),
+                        "source": "URL"
+                    })
+        
+        # Chercher dans l'index des PDFs (moins prioritaire)
         if self.pdf_index is not None:
             scores, ids = self.pdf_index.search(q_emb, k)
             for i, score in zip(ids[0], scores[0]):
@@ -163,20 +177,12 @@ class FaissRAGGemini:
                         "source": "PDF"
                     })
         
-        # Chercher dans l'index des URLs scraped
-        if self.rag_index is not None:
-            scores, ids = self.rag_index.search(q_emb, k)
-            for i, score in zip(ids[0], scores[0]):
-                if i != -1 and i < len(self.rag_texts):
-                    results.append({
-                        "url": self.rag_urls[i],
-                        "text": self.rag_texts[i],
-                        "score": float(score),
-                        "chunk_id": int(i),
-                        "source": "URL"
-                    })
+        # Trier par score ET privilégier les URLs web
+        # Les URLs web obtiennent un bonus de score de 0.1 pour les prioriser
+        for r in results:
+            if r['source'] == 'URL':
+                r['score'] = r['score'] * 0.9  # Bonus: score plus bas = meilleur en distance L2
         
-        # Trier par score et garder les k meilleurs
         results.sort(key=lambda x: x['score'], reverse=True)
         results = results[:k]
         

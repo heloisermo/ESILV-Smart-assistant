@@ -494,7 +494,14 @@ def init_session_state():
 
 def initialize_agents():
     """Initialise l'orchestrateur et les agents"""
-    if not st.session_state.initialized:
+    # Vérifier si l'orchestrateur existe et a des agents
+    needs_init = (
+        not st.session_state.initialized or 
+        st.session_state.orchestrator is None or
+        len(st.session_state.orchestrator.agents) == 0
+    )
+    
+    if needs_init:
         with st.spinner("⏳ Initialisation des agents..."):
             try:
                 orchestrator = OrchestratorAgent()

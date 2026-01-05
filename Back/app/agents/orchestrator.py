@@ -139,13 +139,35 @@ Intention:"""
                     print(f"Erreur lors du traitement par {agent.name}: {e}")
                     continue
         
-        # Aucun agent n'a pu traiter la requête
+        # Aucun agent spécialisé n'a pu traiter - utiliser le LLM générique comme fallback
+        print("Aucun agent spécialisé disponible - utilisation du LLM générique")
+        try:
+            if self.llm:
+                prompt = f"""Tu es un assistant virtuel de l'ESILV (École Supérieure d'Ingénieurs Léonard de Vinci).
+Réponds de manière professionnelle et courtoise à cette question, même si tu n'as pas toutes les informations.
+Si tu ne peux pas répondre précisément, oriente vers le site web de l'ESILV ou propose de contacter l'école.
+
+Question: {query}
+
+Réponse:"""
+                response = self.llm.generate_content(prompt)
+                return {
+                    "success": True,
+                    "agent_used": "llm_fallback",
+                    "intent": intent,
+                    "response": response.text,
+                    "chunks": []
+                }
+        except Exception as e:
+            print(f"Erreur LLM fallback: {e}")
+        
+        # Si même le LLM échoue, message professionnel
         return {
-            "success": False,
-            "error": "Aucun agent n'a pu traiter cette requête",
-            "agent_used": "none",
+            "success": True,
+            "agent_used": "fallback",
             "intent": intent,
-            "response": "Désolé, je ne peux pas traiter cette demande pour le moment."
+            "response": "Je vous remercie pour votre question. Pour obtenir une réponse précise, je vous invite à consulter le site www.esilv.fr ou à contacter directement notre équipe d'admission.",
+            "chunks": []
         }
     
     def route_stream(self, query: str, context: Dict[str, Any] = None):
@@ -194,13 +216,36 @@ Intention:"""
                     print(f"Erreur lors du traitement par {agent.name}: {e}")
                     continue
         
-        # Aucun agent n'a pu traiter la requête
+        # Aucun agent spécialisé n'a pu traiter - utiliser le LLM générique comme fallback
+        print("Aucun agent spécialisé disponible - utilisation du LLM générique")
+        try:
+            if self.llm:
+                prompt = f"""Tu es un assistant virtuel de l'ESILV (École Supérieure d'Ingénieurs Léonard de Vinci).
+Réponds de manière professionnelle et courtoise à cette question, même si tu n'as pas toutes les informations.
+Si tu ne peux pas répondre précisément, oriente vers le site web de l'ESILV ou propose de contacter l'école.
+
+Question: {query}
+
+Réponse:"""
+                response = self.llm.generate_content(prompt)
+                yield {
+                    "success": True,
+                    "agent_used": "llm_fallback",
+                    "intent": intent,
+                    "response": response.text,
+                    "chunks": []
+                }
+                return
+        except Exception as e:
+            print(f"Erreur LLM fallback: {e}")
+        
+        # Si même le LLM échoue, message professionnel
         yield {
-            "success": False,
-            "error": "Aucun agent n'a pu traiter cette requête",
-            "agent_used": "none",
+            "success": True,
+            "agent_used": "fallback",
             "intent": intent,
-            "response": "Désolé, je ne peux pas traiter cette demande pour le moment."
+            "response": "Je vous remercie pour votre question. Pour obtenir une réponse précise, je vous invite à consulter le site www.esilv.fr ou à contacter directement notre équipe d'admission.",
+            "chunks": []
         }
     
     def list_agents(self) -> List[str]:
