@@ -89,31 +89,28 @@ class FaissRAGGemini:
         Utile après l'ajout de nouveaux documents sans redémarrer l'application.
         """
         try:
-            if not os.path.exists(INDEX_PATH):
-                print(f"Index FAISS non trouvé: {INDEX_PATH}")
-                self.index = None
-                self.urls = []
-                self.texts = []
-                self.doc_indices = []
+            if not os.path.exists(PDF_INDEX_PATH):
+                print(f"Index PDF FAISS non trouvé: {PDF_INDEX_PATH}")
+                self.pdf_index = None
+                self.pdf_urls = []
+                self.pdf_texts = []
                 return False
             
-            if not os.path.exists(MAPPING_PATH):
-                print(f"Mapping FAISS non trouvé: {MAPPING_PATH}")
-                self.index = None
-                self.urls = []
-                self.texts = []
-                self.doc_indices = []
+            if not os.path.exists(PDF_MAPPING_PATH):
+                print(f"Mapping PDF FAISS non trouvé: {PDF_MAPPING_PATH}")
+                self.pdf_index = None
+                self.pdf_urls = []
+                self.pdf_texts = []
                 return False
             
-            # Recharger l'index et le mapping
-            self.index = faiss.read_index(INDEX_PATH)
-            with open(MAPPING_PATH, "r", encoding="utf-8") as f:
+            # Recharger l'index PDF et le mapping
+            self.pdf_index = faiss.read_index(PDF_INDEX_PATH)
+            with open(PDF_MAPPING_PATH, "r", encoding="utf-8") as f:
                 mapping = json.load(f)
-            self.urls = mapping["urls"]
-            self.texts = mapping["texts"]
-            self.doc_indices = mapping.get("doc_indices", None)
+            self.pdf_urls = mapping["urls"]
+            self.pdf_texts = mapping["texts"]
             
-            print(f"Index rechargé : {len(self.texts)} chunks")
+            print(f"Index PDFs rechargé : {len(self.pdf_texts)} chunks")
             return True
         except Exception as e:
             print(f"Erreur lors du rechargement de l'index: {e}")
