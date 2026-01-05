@@ -6,6 +6,7 @@ import os
 import json
 import shutil
 import sys
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
@@ -42,10 +43,51 @@ MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 # Chemin du modèle pré-chargé sur GCP (même que dans rag.py)
 GCP_MODEL_CACHE_PATH = '/root/.cache/huggingface/hub/models--sentence-transformers--paraphrase-multilingual-MiniLM-L12-v2/snapshots/86741b4e3f5cb7765a600d3a3d55a0f6a6cb443d'
 
+# Cloud Storage bucket name
+GCS_BUCKET = "esilv-chatbot-data"
+
 # Chunking parameters
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 100
 MIN_CHUNK_SIZE = 150
+
+
+def sync_to_cloud_storage():
+    """
+    Synchronize local index files to Cloud Storage
+    This ensures that new instances can access the updated index
+    """
+    try:
+        # Upload faiss_index.bin
+        subprocess.run([
+            "gcloud", "storage", "cp",
+            INDEX_PATH,
+            f"gs://{GCS_BUCKET}/data/faiss_index.bin"
+        ], check=True, capture_output=True)
+        
+        # Upload faiss_mapping.json
+        subprocess.run([
+            "gcloud", "storage", "cp",
+            MAPPING_PATH,
+            f"gs://{GCS_BUCKET}/data/faiss_mapping.json"
+        ], check=True, capture_output=True)
+        
+        # Upload processed_documents.json if it exists
+        if os.path.exists(DOCUMENTS_METADATA_PATH):
+            subprocess.run([
+                "gcloud", "storage", "cp",
+                DOCUMENTS_METADATA_PATH,
+                f"gs://{GCS_BUCKET}/data/processed_documents.json"
+            ], check=True, capture_output=True)
+        
+        print("✅ Index synchronisé avec Cloud Storage")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Erreur lors de la synchronisation: {e.stderr.decode() if e.stderr else str(e)}")
+        return False
+    except Exception as e:
+        print(f"❌ Erreur inattendue lors de la synchronisation: {str(e)}")
+        return False
 
 
 def ensure_data_dir():
@@ -570,6 +612,12 @@ def add_document_to_index(
         
         with open(MAPPING_PATH, "w", encoding="utf-8") as f:
             json.dump(updated_mapping, f, ensure_ascii=False, indent=2)
+        
+        if progress_callback:
+            progress_callback(0.95, "Synchronisation", "Synchronisation avec Cloud Storage...")
+        
+        # Sync to Cloud Storage so other instances can access the updated index
+        sync_to_cloud_storage()
         
         if progress_callback:
             progress_callback(1.0, "Terminé", "Document ajouté avec succès !")
