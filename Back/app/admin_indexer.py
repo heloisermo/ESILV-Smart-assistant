@@ -6,7 +6,6 @@ import os
 import json
 import shutil
 import sys
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
@@ -54,39 +53,32 @@ MIN_CHUNK_SIZE = 150
 
 def sync_to_cloud_storage():
     """
-    Synchronize local index files to Cloud Storage
+    Synchronize local index files to Cloud Storage using Python SDK
     This ensures that new instances can access the updated index
     """
     try:
+        from google.cloud import storage
+        
+        client = storage.Client()
+        bucket = client.bucket(GCS_BUCKET)
+        
         # Upload faiss_index.bin
-        subprocess.run([
-            "gcloud", "storage", "cp",
-            INDEX_PATH,
-            f"gs://{GCS_BUCKET}/data/faiss_index.bin"
-        ], check=True, capture_output=True)
+        blob = bucket.blob("data/faiss_index.bin")
+        blob.upload_from_filename(INDEX_PATH)
         
         # Upload faiss_mapping.json
-        subprocess.run([
-            "gcloud", "storage", "cp",
-            MAPPING_PATH,
-            f"gs://{GCS_BUCKET}/data/faiss_mapping.json"
-        ], check=True, capture_output=True)
+        blob = bucket.blob("data/faiss_mapping.json")
+        blob.upload_from_filename(MAPPING_PATH)
         
         # Upload processed_documents.json if it exists
         if os.path.exists(DOCUMENTS_METADATA_PATH):
-            subprocess.run([
-                "gcloud", "storage", "cp",
-                DOCUMENTS_METADATA_PATH,
-                f"gs://{GCS_BUCKET}/data/processed_documents.json"
-            ], check=True, capture_output=True)
+            blob = bucket.blob("data/processed_documents.json")
+            blob.upload_from_filename(DOCUMENTS_METADATA_PATH)
         
         print("✅ Index synchronisé avec Cloud Storage")
         return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Erreur lors de la synchronisation: {e.stderr.decode() if e.stderr else str(e)}")
-        return False
     except Exception as e:
-        print(f"❌ Erreur inattendue lors de la synchronisation: {str(e)}")
+        print(f"❌ Erreur lors de la synchronisation avec Cloud Storage: {str(e)}")
         return False
 
 
