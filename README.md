@@ -16,6 +16,7 @@
 - [Créer l'index initial](#-créer-lindex-initial-scraping--indexation)
 - [Lancer l'application](#-lancer-lapplication)
 - [Structure du projet](#-structure-du-projet)
+- [Evaluation Notebook](#-evaluation-notebook)
 - [Mise à jour des données](#-mise-à-jour-des-données)
 - [Déploiement sur GCP](#-déploiement-sur-google-cloud-platform)
 - [Tests](#-tests)
@@ -195,37 +196,90 @@ ESILV-Smart-assistant/
 │   └── uploads/                 # Documents uploadés
 │
 ├── Back/
-│   └── app/
+│   └── app/                              # 🎯 Backend (équivalent app/)
 │       ├── esilv-smart-assistant-xxxxx.json  # Credentials GCP (à placer - ignoré par git)
 │       ├── admin_indexer.py                  # Indexation pour l'interface admin (réindexation)
 │       ├── document_manager.py               # Gestion des documents uploadés
 │       ├── leads_manager.py                  # Gestion des leads
 │       │
-│       ├── agents/                           # Agents conversationnels
+│       ├── agents/                           # 🤖 Agents conversationnels (équivalent agents/)
 │       │   ├── orchestrator.py              # Orchestrateur principal
 │       │   ├── rag_agent.py                 # Agent RAG
 │       │   ├── contact_agent.py             # Agent de contact
 │       │   └── base_agent.py                # Classe de base
 │       │
-│       └── rag/                             # Système RAG (indexation initiale)
+│       └── rag/                             # 📥 Système d'ingestion (équivalent ingestion/)
 │           ├── main.py                      # Pipeline complet scraping + indexation
 │           ├── scraper.py                   # Script de scraping web
 │           ├── indexer.py                   # Script d'indexation initiale
 │           ├── chunker.py                   # Découpage de texte
 │           └── rag.py                       # Recherche vectorielle (utilisé par le chatbot)
 │
-├── Front/
-│   ├── streamlit_app.py         # Interface utilisateur
+├── Front/                        # 🎨 Interface utilisateur (équivalent ui/)
+│   ├── streamlit_app.py         # Interface utilisateur principale
 │   ├── Dockerfile               # Configuration Docker pour déploiement
 │   └── assets/                  # Ressources visuelles
 │
-└── admin_pages/                 # Pages d'administration
+├── notebooks/                    # 📊 Notebooks Jupyter d'évaluation
+│   ├── evaluation.ipynb         # Notebook d'évaluation complet
+│   └── evaluation_results/      # Résultats des évaluations (graphiques, JSON)
+│
+└── admin_pages/                 # 🔐 Pages d'administration
     ├── auth.py                  # Authentification admin
     ├── document_management.py   # Gestion des documents
     └── leads_management.py      # Gestion des leads
 ```
 
-## 🔄 Mise à jour des données
+**📌 Correspondance avec les consignes du projet :**
+- ✅ `app/` → `Back/app/` (backend et logique métier)
+- ✅ `agents/` → `Back/app/agents/` (agents conversationnels)
+- ✅ `ingestion/` → `Back/app/rag/` (scraping et indexation)
+- ✅ `ui/` → `Front/` (interface utilisateur Streamlit)
+- ✅ `notebooks/` → `notebooks/` (évaluation et analyses)
+
+## � Evaluation Notebook
+
+Le notebook [`notebooks/evaluation.ipynb`](notebooks/evaluation.ipynb) fournit une évaluation complète du système :
+
+### 🎯 Contenu du notebook
+
+- **Query Examples** : 15 questions de test couvrant 5 catégories :
+  - Programmes académiques
+  - Admission et inscriptions
+  - Campus et vie étudiante
+  - Demandes de contact
+  - Informations générales
+
+- **Accuracy Metrics** :
+  - Taux de succès des requêtes
+  - Précision du routing (vers le bon agent)
+  - Matrice de confusion
+  - Rapport de classification
+
+- **Latency Plots** :
+  - Distribution de la latence
+  - Évolution au fil des requêtes
+  - Box plots par catégorie
+  - Métriques min/max/moyenne/médiane
+
+### 🚀 Utilisation
+
+```bash
+# Installer Jupyter (si nécessaire)
+pip install jupyter matplotlib seaborn scikit-learn
+
+# Lancer le notebook
+jupyter notebook notebooks/evaluation.ipynb
+```
+
+Le notebook génère automatiquement :
+- 📊 Graphiques de performance (PNG)
+- 📄 Résultats détaillés (JSON)
+- 📈 Résumé des métriques (CSV)
+
+Tous les résultats sont sauvegardés dans `notebooks/evaluation_results/`
+
+## �🔄 Mise à jour des données
 
 ### Re-scraper et re-indexer
 
