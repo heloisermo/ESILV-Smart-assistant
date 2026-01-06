@@ -34,6 +34,7 @@ SYSTEM_PROMPT = os.getenv(
     "SYSTEM_PROMPT", 
     "Tu es un assistant pour l'ecole d'ingenieurs ESILV. "
     "Reponds aux questions en utilisant le contexte fourni. "
+    "Plusieurs extraits te sont fournis - analyse-les tous et utilise celui qui contient la meilleure réponse à la question. "
     "Reponds toujours en francais et de maniere claire et concise."
 )
 
@@ -134,7 +135,7 @@ class FaissRAGGemini:
         # Charger le modèle si nécessaire
         self._ensure_model_loaded()
         
-    def retrieve(self, query, k=5):
+    def retrieve(self, query, k=12):
         """Recherche dans les DEUX index (PDFs + URLs) et retourne les k meilleurs résultats combinés"""
         self._ensure_model_loaded()
         
@@ -147,7 +148,7 @@ class FaissRAGGemini:
 
         results = []
         
-        # Chercher dans l'index des URLs scraped ET PDFs avec le même k
+        # Chercher k résultats dans chaque index
         if self.rag_index is not None:
             scores, ids = self.rag_index.search(q_emb, k)
             for i, score in zip(ids[0], scores[0]):
@@ -160,7 +161,11 @@ class FaissRAGGemini:
                         "source": "URL"
                     })
         
-        # Chercher dans l'index des PDFs
+        print(f"\nRecherche: '{query}'")
+        print(f"URLs trouvées (top {k}):")
+        for r in [r for r in results if r['source'] == 'URL'][:5]:
+            print(f"  Score: {r['score']:.4f} | {r['text'][:80].replace(chr(10), ' ')}...")
+        
         if self.pdf_index is not None:
             scores, ids = self.pdf_index.search(q_emb, k)
             for i, score in zip(ids[0], scores[0]):
@@ -173,13 +178,15 @@ class FaissRAGGemini:
                         "source": "PDF"
                     })
         
-        # Trier par score (croissant car distance L2) et garder les k meilleurs
-        # Pas de bonus - URLs et PDFs sont traités à égalité
+        print(f"PDFs trouvés (top {k}):")
+        for r in [r for r in results if r['source'] == 'PDF'][:5]:
+            print(f"  Score: {r['score']:.4f} | {r['text'][:80].replace(chr(10), ' ')}...")
+        
+        # Trier tous les résultats par score et garder les k meilleurs
         results.sort(key=lambda x: x['score'])
         results = results[:k]
         
-        print(f"\nRecherche: '{query}'")
-        print(f"Top {k} chunks pertinents:")
+        print(f"\nRésultats FINAUX après tri (top {k}):")
         for rank, r in enumerate(results, 1):
             text_preview = r['text'][:100].replace('\n', ' ')
             print(f"  {rank}. Score: {r['score']:.4f} [{r['source']}] | {text_preview}...")
@@ -297,7 +304,7 @@ class FaissRAGGemini:
             traceback.print_exc()
             yield None
 
-    def answer(self, question: str, k: int = 5, fallback_mode: bool = True, enable_web_search: bool = True):
+    def answer(self, question: str, k: int = 12, fallback_mode: bool = True, enable_web_search: bool = True):
         """Répond à une question en utilisant le RAG et le scraping en temps réel si nécessaire"""
         docs = self.retrieve(question, k=k)
         
@@ -340,8 +347,8 @@ class FaissRAGGemini:
         
         return ans, docs
     
-    def answer_stream(self, question: str, k: int = 5, fallback_mode: bool = True, enable_web_search: bool = True):
-        """Répond à une question en streaming en utilisant le RAG et le scraping en temps réel si nécessaire"""
+    def answer_stream(self, question: str, k: int = 12, fallback_mode: bool = True, enable_web_search: bool = True):
+        """Répond à une question en streaming"""
         docs = self.retrieve(question, k=k)
         
         # Vérifier si les résultats sont pertinents (score > 0.3)
