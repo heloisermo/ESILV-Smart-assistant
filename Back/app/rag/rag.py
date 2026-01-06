@@ -181,8 +181,8 @@ class FaissRAGGemini:
         for r in [r for r in results if r['source'] == 'PDF'][:5]:
             print(f"  Score: {r['score']:.4f} | {r['text'][:80].replace(chr(10), ' ')}...")
         
-        # Trier tous les résultats par score et garder les k meilleurs
-        results.sort(key=lambda x: x['score'])
+        # Trier tous les résultats par score DÉCROISSANT (plus grand score = meilleur pour cosine similarity)
+        results.sort(key=lambda x: x['score'], reverse=True)
         results = results[:k]
         
         print(f"\nRésultats FINAUX après tri (top {k}):")
