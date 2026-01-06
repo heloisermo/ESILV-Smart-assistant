@@ -34,7 +34,6 @@ SYSTEM_PROMPT = os.getenv(
     "SYSTEM_PROMPT", 
     "Tu es un assistant pour l'ecole d'ingenieurs ESILV. "
     "Reponds aux questions en utilisant le contexte fourni. "
-    "Plusieurs extraits te sont fournis - analyse-les tous et utilise celui qui contient la meilleure réponse à la question. "
     "Reponds toujours en francais et de maniere claire et concise."
 )
 
@@ -135,7 +134,7 @@ class FaissRAGGemini:
         # Charger le modèle si nécessaire
         self._ensure_model_loaded()
         
-    def retrieve(self, query, k=12):
+    def retrieve(self, query, k=5):
         """Recherche dans les DEUX index (PDFs + URLs) et retourne les k meilleurs résultats combinés"""
         self._ensure_model_loaded()
         
@@ -304,7 +303,7 @@ class FaissRAGGemini:
             traceback.print_exc()
             yield None
 
-    def answer(self, question: str, k: int = 12, fallback_mode: bool = True, enable_web_search: bool = True):
+    def answer(self, question: str, k: int = 5, fallback_mode: bool = True, enable_web_search: bool = True):
         """Répond à une question en utilisant le RAG et le scraping en temps réel si nécessaire"""
         docs = self.retrieve(question, k=k)
         
@@ -315,7 +314,8 @@ class FaissRAGGemini:
         # On combine les k meilleurs chunks pour le contexte
         context_parts = []
         for i, d in enumerate(docs, 1):
-            context_parts.append(f"[Extrait {i}]\n{d['text']}")
+            source_label = f"[{d['source']}]" if 'source' in d else ""
+            context_parts.append(f"[Extrait {i}] {source_label}\n{d['text']}")
         
         context = "\n\n---\n\n".join(context_parts)
         
@@ -347,7 +347,7 @@ class FaissRAGGemini:
         
         return ans, docs
     
-    def answer_stream(self, question: str, k: int = 12, fallback_mode: bool = True, enable_web_search: bool = True):
+    def answer_stream(self, question: str, k: int = 5, fallback_mode: bool = True, enable_web_search: bool = True):
         """Répond à une question en streaming"""
         docs = self.retrieve(question, k=k)
         
@@ -358,7 +358,8 @@ class FaissRAGGemini:
         # On combine les k meilleurs chunks pour le contexte
         context_parts = []
         for i, d in enumerate(docs, 1):
-            context_parts.append(f"[Extrait {i}]\n{d['text']}")
+            source_label = f"[{d['source']}]" if 'source' in d else ""
+            context_parts.append(f"[Extrait {i}] {source_label}\n{d['text']}")
         
         context = "\n\n---\n\n".join(context_parts)
         

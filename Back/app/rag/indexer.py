@@ -2,7 +2,7 @@ import json
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from .chunker import chunk_documents
+from chunker import chunk_documents
 from datetime import datetime
 import shutil
 import os

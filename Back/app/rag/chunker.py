@@ -6,9 +6,9 @@ from typing import List, Dict
 
 def smart_chunk_text(
     text: str, 
-    chunk_size: int = 500, 
-    overlap: int = 50,
-    min_chunk_size: int = 100
+    chunk_size: int = 1000, 
+    overlap: int = 100,
+    min_chunk_size: int = 200
 ) -> List[str]:
     """
     Découpe un texte en chunks de taille fixe avec overlap.
@@ -69,9 +69,9 @@ def smart_chunk_text(
 
 def chunk_documents(
     documents: Dict[str, str],
-    chunk_size: int = 500,
-    overlap: int = 50,
-    min_chunk_size: int = 100
+    chunk_size: int = 1000,
+    overlap: int = 100,
+    min_chunk_size: int = 200
 ) -> tuple[List[str], List[str], List[int]]:
     """
     Découpe une collection de documents en chunks.
